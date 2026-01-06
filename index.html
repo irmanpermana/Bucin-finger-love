@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<title>Bucin Finger Love 💕</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<!-- MediaPipe -->
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
+
+<style>
+body {
+  margin: 0;
+  height: 100vh;
+  background: linear-gradient(135deg, #ff5f8f, #ff9a9e);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  font-family: 'Segoe UI', sans-serif;
+  color: white;
+  overflow: hidden;
+  transition: 1s;
+}
+
+body.night {
+  background: linear-gradient(135deg, #2b1055, #7597de);
+}
+
+h1 {
+  font-size: 2.5em;
+  text-align: center;
+  padding: 20px;
+  animation: zoom 0.4s ease;
+}
+
+@keyframes zoom {
+  from {opacity:0; transform:scale(0.8);}
+  to {opacity:1; transform:scale(1);}
+}
+
+.heart {
+  position: absolute;
+  font-size: 24px;
+  animation: float 2.5s linear forwards;
+}
+
+@keyframes float {
+  from {transform:translateY(0); opacity:1;}
+  to {transform:translateY(-150px); opacity:0;}
+}
+
+video {
+  position: fixed;
+  bottom: 10px;
+  right: 10px;
+  width: 130px;
+  border-radius: 12px;
+  opacity: 0.5;
+}
+</style>
+</head>
+
+<body>
+
+<h1 id="text">Angkat jarimu buat ngomong cinta 🤍</h1>
+<video id="video" autoplay muted playsinline></video>
+
+<script>
+const text = document.getElementById("text");
+const body = document.body;
+
+const BUCI_TEXT = [
+  "Kamu itu rumahku 🏡❤️",
+  "Aku nyaman sama kamu 🥰",
+  "Cintaku ke kamu nggak ada habisnya 💕",
+  "Kamu alasan aku senyum 😊",
+  "Aku pilih kamu, tiap hari 💍"
+];
+
+let lastTime = 0;
+
+function fingerUp(tip, pip) {
+  return tip.y < pip.y;
+}
+
+function heart(x, y, count=1) {
+  for(let i=0;i<count;i++){
+    const h = document.createElement("div");
+    h.className = "heart";
+    h.innerHTML = "❤️";
+    h.style.left = x + Math.random()*40 + "px";
+    h.style.top = y + "px";
+    document.body.appendChild(h);
+    setTimeout(()=>h.remove(),2500);
+  }
+}
+
+function show(msg){
+  text.innerText = msg;
+  text.style.animation="none";
+  text.offsetHeight;
+  text.style.animation="zoom 0.4s ease";
+  if (navigator.vibrate) navigator.vibrate(60);
+}
+
+const hands = new Hands({
+  locateFile: file => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`
+});
+
+hands.setOptions({
+  maxNumHands: 1,
+  minDetectionConfidence: 0.7,
+  minTrackingConfidence: 0.7
+});
+
+hands.onResults(results=>{
+  if(!results.multiHandLandmarks) return;
+
+  const lm = results.multiHandLandmarks[0];
+  const now = Date.now();
+  if(now - lastTime < 900) return;
+
+  const index = fingerUp(lm[8], lm[6]);
+  const middle = fingerUp(lm[12], lm[10]);
+  const ring = fingerUp(lm[16], lm[14]);
+  const pinky = fingerUp(lm[20], lm[18]);
+
+  const pinch = Math.hypot(
+    lm[4].x - lm[8].x,
+    lm[4].y - lm[8].y
+  ) < 0.045;
+
+  // ☝️ Telunjuk
+  if(index && !middle && !ring && !pinky){
+    show("Hai Sayangku 💕");
+    heart(lm[8].x*innerWidth, lm[8].y*innerHeight);
+  }
+
+  // ✌️ Victory
+  else if(index && middle && !ring && !pinky){
+    show("Aku Sayang Sama Kamu 🥰");
+    heart(lm[12].x*innerWidth, lm[12].y*innerHeight, 6);
+  }
+
+  // 🫰 Finger Heart
+  else if(pinch){
+    show(BUCI_TEXT[Math.floor(Math.random()*BUCI_TEXT.length)]);
+    heart(lm[8].x*innerWidth, lm[8].y*innerHeight, 10);
+    body.classList.add("night");
+  }
+
+  // ✊ Reset
+  else if(!index && !middle && !ring && !pinky){
+    show("Angkat jarimu buat ngomong cinta 🤍");
+    body.classList.remove("night");
+  }
+
+  lastTime = now;
+});
+
+const camera = new Camera(document.getElementById("video"), {
+  onFrame: async () => {
+    await hands.send({image: video});
+  },
+  width: 640,
+  height: 480
+});
+camera.start();
+</script>
+
+</body>
+</html>
