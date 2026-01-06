@@ -159,13 +159,16 @@ hands.onResults(results=>{
   lastTime = now;
 });
 
-const camera = new Camera(document.getElementById("video"), {
+const videoElement = document.getElementById("video");
+
+const camera = new Camera(videoElement, {
   onFrame: async () => {
-    await hands.send({image: video});
+    await hands.send({ image: videoElement });
   },
   width: 640,
   height: 480
 });
+
 camera.start();
 </script>
 
