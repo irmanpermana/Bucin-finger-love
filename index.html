@@ -28,9 +28,10 @@ body.night {
 }
 
 h1 {
-  font-size: 2.5em;
+  font-size: 2.3em;
   text-align: center;
   padding: 20px;
+  z-index: 2;
   animation: zoom 0.4s ease;
 }
 
@@ -50,6 +51,19 @@ h1 {
   to {transform:translateY(-150px); opacity:0;}
 }
 
+/* FOTO (AMAN WALAU BELUM ADA) */
+#photo {
+  position: absolute;
+  max-width: 70%;
+  border-radius: 20px;
+  box-shadow: 0 0 35px rgba(255,255,255,0.6);
+  opacity: 0;
+  transform: scale(0.8);
+  transition: 0.6s ease;
+  z-index: 1;
+}
+
+/* VIDEO WAJIB ADA TAPI DISAMARKAN (FIX ANDROID) */
 video {
   position: fixed;
   top: -1000px;
@@ -63,25 +77,30 @@ video {
 
 <body>
 
-<h1 id="text">Angkat jarimu buat ngomong cinta 🤍</h1>
+<h1 id="text">Angkat telunjukmu ☝️</h1>
+
+<img id="photo" src="" alt="Foto Cinta">
+
 <video id="video" autoplay muted playsinline></video>
 
 <script>
 const text = document.getElementById("text");
 const body = document.body;
-
-const BUCI_TEXT = [
-  "Kamu itu rumahku 🏡❤️",
-  "Aku nyaman sama kamu 🥰",
-  "Cintaku ke kamu nggak ada habisnya 💕",
-  "Kamu alasan aku senyum 😊",
-  "Aku pilih kamu, tiap hari 💍"
-];
+const photo = document.getElementById("photo");
+const videoElement = document.getElementById("video");
 
 let lastTime = 0;
 
 function fingerUp(tip, pip) {
   return tip.y < pip.y;
+}
+
+function show(msg){
+  text.innerText = msg;
+  text.style.animation = "none";
+  text.offsetHeight;
+  text.style.animation = "zoom 0.4s ease";
+  if (navigator.vibrate) navigator.vibrate(50);
 }
 
 function heart(x, y, count=1) {
@@ -96,14 +115,18 @@ function heart(x, y, count=1) {
   }
 }
 
-function show(msg){
-  text.innerText = msg;
-  text.style.animation="none";
-  text.offsetHeight;
-  text.style.animation="zoom 0.4s ease";
-  if (navigator.vibrate) navigator.vibrate(60);
+function showPhoto(){
+  if (!photo.src) return; // aman kalau foto belum ada
+  photo.style.opacity = "1";
+  photo.style.transform = "scale(1)";
 }
 
+function hidePhoto(){
+  photo.style.opacity = "0";
+  photo.style.transform = "scale(0.8)";
+}
+
+/* MEDIAPIPE HANDS */
 const hands = new Hands({
   locateFile: file => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`
 });
@@ -114,12 +137,16 @@ hands.setOptions({
   minTrackingConfidence: 0.7
 });
 
-hands.onResults(results=>{
-  if(!results.multiHandLandmarks) return;
+hands.onResults(results => {
+
+  // DEBUG: pastikan frame masuk
+  // console.log("FRAME MASUK");
+
+  if (!results.multiHandLandmarks) return;
 
   const lm = results.multiHandLandmarks[0];
   const now = Date.now();
-  if(now - lastTime < 900) return;
+  if (now - lastTime < 900) return;
 
   const index = fingerUp(lm[8], lm[6]);
   const middle = fingerUp(lm[12], lm[10]);
@@ -135,32 +162,36 @@ hands.onResults(results=>{
   if(index && !middle && !ring && !pinky){
     show("Hai Sayangku 💕");
     heart(lm[8].x*innerWidth, lm[8].y*innerHeight);
+    hidePhoto();
+    body.classList.remove("night");
   }
 
   // ✌️ Victory
   else if(index && middle && !ring && !pinky){
     show("Aku Sayang Sama Kamu 🥰");
     heart(lm[12].x*innerWidth, lm[12].y*innerHeight, 6);
+    hidePhoto();
   }
 
   // 🫰 Finger Heart
   else if(pinch){
-    show(BUCI_TEXT[Math.floor(Math.random()*BUCI_TEXT.length)]);
+    show("Kamu itu rumahku 🏡❤️");
     heart(lm[8].x*innerWidth, lm[8].y*innerHeight, 10);
     body.classList.add("night");
+    showPhoto();
   }
 
   // ✊ Reset
   else if(!index && !middle && !ring && !pinky){
-    show("Angkat jarimu buat ngomong cinta 🤍");
+    show("Angkat telunjukmu ☝️");
+    hidePhoto();
     body.classList.remove("night");
   }
 
   lastTime = now;
 });
 
-const videoElement = document.getElementById("video");
-
+/* CAMERA (FIX ANDROID) */
 const camera = new Camera(videoElement, {
   onFrame: async () => {
     await hands.send({ image: videoElement });
