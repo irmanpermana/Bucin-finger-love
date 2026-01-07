@@ -93,7 +93,22 @@ async function setupCamera() {
 }
 
 function fingerUp(tip, pip) {
-  return tip[1] < pip[1];
+  return tip[1] < pip[1] - 10; // buffer 10px
+}
+let lastGesture = "";
+let stableCount = 0;
+
+function commitGesture(name) {
+  if (name === lastGesture) {
+    stableCount++;
+  } else {
+    lastGesture = name;
+    stableCount = 0;
+  }
+
+  if (stableCount === 6) { // tahan ±6 frame
+    show(name);
+  }
 }
 
 /* ZOOM pakai pinch */
@@ -143,23 +158,24 @@ async function detect() {
     const ring = fingerUp(lm[16], lm[14]);
     const pinky = fingerUp(lm[20], lm[18]);
 
-    const pinch = Math.hypot(
-      lm[4][0] - lm[8][0],
-      lm[4][1] - lm[8][1]
-    ) < 40;
+    const pinchDist = Math.hypot(
+  lm[4][0] - lm[8][0],
+  lm[4][1] - lm[8][1]
+);
+const pinch = pinchDist < 35; // lebih ketat
 
-    if (index && !middle && !ring && !pinky) {
-      show("Hai Sayangku 💕");
-    }
-    else if (index && middle && !ring && !pinky) {
-      show("Aku Sayang Sama Kamu 🥰");
-    }
-    else if (pinch) {
-      show("Kamu itu rumahku 🏡❤️");
-    }
-    else if (!index && !middle && !ring && !pinky) {
-      show("Angkat telunjukmu ☝️");
-    }
+    if (pinch) {
+  commitGesture("Kamu itu rumahku 🏡❤️");
+}
+else if (index && middle && !ring && !pinky) {
+  commitGesture("Aku Sayang Sama Kamu 🥰");
+}
+else if (index && !middle && !ring && !pinky) {
+  commitGesture("Hai Sayangku 💕");
+}
+else if (!index && !middle && !ring && !pinky) {
+  commitGesture("Angkat telunjukmu ☝️");
+}
 
     updateZoom(lm);
     updateRotateAndDepth(lm);
