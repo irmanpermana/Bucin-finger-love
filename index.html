@@ -5,9 +5,9 @@
 <title>Bucin Finger Love 💕</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-<!-- MediaPipe -->
-<script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
+<!-- TensorFlow -->
+<script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.15.0/dist/tf.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/handpose@0.0.7/dist/handpose.min.js"></script>
 
 <style>
 body {
@@ -17,53 +17,35 @@ body {
   display: flex;
   justify-content: center;
   align-items: center;
-  font-family: 'Segoe UI', sans-serif;
+  font-family: system-ui;
   color: white;
+  text-align: center;
   overflow: hidden;
-  transition: 1s;
-}
-
-body.night {
-  background: linear-gradient(135deg, #2b1055, #7597de);
 }
 
 h1 {
-  font-size: 2.3em;
-  text-align: center;
+  font-size: 2.2em;
   padding: 20px;
-  z-index: 2;
-  animation: zoom 0.4s ease;
+  animation: pop 0.4s ease;
 }
 
-@keyframes zoom {
+@keyframes pop {
   from {opacity:0; transform:scale(0.8);}
   to {opacity:1; transform:scale(1);}
 }
 
-.heart {
-  position: absolute;
-  font-size: 24px;
-  animation: float 2.5s linear forwards;
-}
-
-@keyframes float {
-  from {transform:translateY(0); opacity:1;}
-  to {transform:translateY(-150px); opacity:0;}
-}
-
-/* FOTO (AMAN WALAU BELUM ADA) */
+/* Foto (aman walau belum ada) */
 #photo {
   position: absolute;
   max-width: 70%;
   border-radius: 20px;
-  box-shadow: 0 0 35px rgba(255,255,255,0.6);
+  box-shadow: 0 0 30px rgba(255,255,255,0.6);
   opacity: 0;
   transform: scale(0.8);
-  transition: 0.6s ease;
-  z-index: 1;
+  transition: 0.5s;
 }
 
-/* VIDEO WAJIB ADA TAPI DISAMARKAN (FIX ANDROID) */
+/* Kamera HARUS ADA tapi disembunyikan */
 video {
   position: fixed;
   top: -1000px;
@@ -78,130 +60,98 @@ video {
 <body>
 
 <h1 id="text">Angkat telunjukmu ☝️</h1>
-
-<img id="photo" src="" alt="Foto Cinta">
-
+<img id="photo" src="" alt="">
 <video id="video" autoplay muted playsinline></video>
 
 <script>
 const text = document.getElementById("text");
-const body = document.body;
+const video = document.getElementById("video");
 const photo = document.getElementById("photo");
-const videoElement = document.getElementById("video");
 
-let lastTime = 0;
+let model;
+let lastGesture = "";
+let busy = false;
 
-function fingerUp(tip, pip) {
-  return tip.y < pip.y;
-}
-
-function show(msg){
+function show(msg) {
+  if (text.innerText === msg) return;
   text.innerText = msg;
   text.style.animation = "none";
   text.offsetHeight;
-  text.style.animation = "zoom 0.4s ease";
-  if (navigator.vibrate) navigator.vibrate(50);
+  text.style.animation = "pop 0.4s ease";
+  if (navigator.vibrate) navigator.vibrate(40);
 }
 
-function heart(x, y, count=1) {
-  for(let i=0;i<count;i++){
-    const h = document.createElement("div");
-    h.className = "heart";
-    h.innerHTML = "❤️";
-    h.style.left = x + Math.random()*40 + "px";
-    h.style.top = y + "px";
-    document.body.appendChild(h);
-    setTimeout(()=>h.remove(),2500);
-  }
-}
-
-function showPhoto(){
-  if (!photo.src) return; // aman kalau foto belum ada
-  photo.style.opacity = "1";
+function showPhoto() {
+  if (!photo.src) return;
+  photo.style.opacity = 1;
   photo.style.transform = "scale(1)";
 }
 
-function hidePhoto(){
-  photo.style.opacity = "0";
+function hidePhoto() {
+  photo.style.opacity = 0;
   photo.style.transform = "scale(0.8)";
 }
 
-/* MEDIAPIPE HANDS */
-const hands = new Hands({
-  locateFile: file => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`
-});
+async function setupCamera() {
+  const stream = await navigator.mediaDevices.getUserMedia({
+    video: { facingMode: "user" }
+  });
+  video.srcObject = stream;
+  return new Promise(resolve => {
+    video.onloadedmetadata = () => resolve(video);
+  });
+}
 
-hands.setOptions({
-  maxNumHands: 1,
-  minDetectionConfidence: 0.7,
-  minTrackingConfidence: 0.7
-});
+function fingerUp(tip, pip) {
+  return tip[1] < pip[1];
+}
 
-hands.onResults(results => {
-  document.getElementById("text").innerText = "FRAME MASUK";
-});
-  // DEBUG: pastikan frame masuk
-  // console.log("FRAME MASUK");
+async function detect() {
+  if (busy) return;
+  busy = true;
 
-  if (!results.multiHandLandmarks) return;
+  const predictions = await model.estimateHands(video);
 
-  const lm = results.multiHandLandmarks[0];
-  const now = Date.now();
-  if (now - lastTime < 900) return;
+  if (predictions.length > 0) {
+    const lm = predictions[0].landmarks;
 
-  const index = fingerUp(lm[8], lm[6]);
-  const middle = fingerUp(lm[12], lm[10]);
-  const ring = fingerUp(lm[16], lm[14]);
-  const pinky = fingerUp(lm[20], lm[18]);
+    const index = fingerUp(lm[8], lm[6]);
+    const middle = fingerUp(lm[12], lm[10]);
+    const ring = fingerUp(lm[16], lm[14]);
+    const pinky = fingerUp(lm[20], lm[18]);
 
-  const pinch = Math.hypot(
-    lm[4].x - lm[8].x,
-    lm[4].y - lm[8].y
-  ) < 0.045;
+    const pinch = Math.hypot(
+      lm[4][0] - lm[8][0],
+      lm[4][1] - lm[8][1]
+    ) < 40;
 
-  // ☝️ Telunjuk
-  if(index && !middle && !ring && !pinky){
-    show("Hai Sayangku 💕");
-    heart(lm[8].x*innerWidth, lm[8].y*innerHeight);
-    hidePhoto();
-    body.classList.remove("night");
+    if (index && !middle && !ring && !pinky) {
+      show("Hai Sayangku 💕");
+      hidePhoto();
+    }
+    else if (index && middle && !ring && !pinky) {
+      show("Aku Sayang Sama Kamu 🥰");
+      hidePhoto();
+    }
+    else if (pinch) {
+      show("Kamu itu rumahku 🏡❤️");
+      showPhoto();
+    }
+    else if (!index && !middle && !ring && !pinky) {
+      show("Angkat telunjukmu ☝️");
+      hidePhoto();
+    }
   }
 
-  // ✌️ Victory
-  else if(index && middle && !ring && !pinky){
-    show("Aku Sayang Sama Kamu 🥰");
-    heart(lm[12].x*innerWidth, lm[12].y*innerHeight, 6);
-    hidePhoto();
-  }
+  busy = false;
+  requestAnimationFrame(detect);
+}
 
-  // 🫰 Finger Heart
-  else if(pinch){
-    show("Kamu itu rumahku 🏡❤️");
-    heart(lm[8].x*innerWidth, lm[8].y*innerHeight, 10);
-    body.classList.add("night");
-    showPhoto();
-  }
-
-  // ✊ Reset
-  else if(!index && !middle && !ring && !pinky){
-    show("Angkat telunjukmu ☝️");
-    hidePhoto();
-    body.classList.remove("night");
-  }
-
-  lastTime = now;
-});
-
-/* CAMERA (FIX ANDROID) */
-const camera = new Camera(videoElement, {
-  onFrame: async () => {
-    await hands.send({ image: videoElement });
-  },
-  width: 640,
-  height: 480
-});
-
-camera.start();
+(async () => {
+  await setupCamera();
+  model = await handpose.load();
+  detect();
+})();
 </script>
 
 </body>
