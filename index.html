@@ -2,250 +2,156 @@
 <html lang="id">
 <head>
 <meta charset="UTF-8">
-<title>Bucin Interaktif 💕</title>
+<title>Bucin Finger Love 💕</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<!-- TensorFlow -->
+<script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.15.0/dist/tf.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/handpose@0.0.7/dist/handpose.min.js"></script>
 
 <style>
 body {
   margin: 0;
   height: 100vh;
-  overflow: hidden;
-  font-family: system-ui, sans-serif;
+  background: linear-gradient(135deg, #ff5f8f, #ff9a9e);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  font-family: system-ui;
   color: white;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-}
-
-#bg {
-  position: fixed;
-  inset: 0;
-  z-index: -1;
-  background:
-    linear-gradient(rgba(0,0,0,.45), rgba(0,0,0,.45)),
-    linear-gradient(135deg, #ff5f8f, #ff9a9e);
-  background-size: cover;
-  background-position: center;
-  transition: opacity .6s ease;
-}
-
-.scene { perspective: 1000px; }
-
-.text3d {
-  font-size: 2.4em;
-  font-weight: 800;
   text-align: center;
-  transform-style: preserve-3d;
-  animation: appear .7s cubic-bezier(.2,.8,.2,1);
-  text-shadow:
-    1px 1px 0 #e6004c,
-    2px 2px 0 #d60047,
-    3px 3px 0 #c60042,
-    4px 4px 12px rgba(0,0,0,.45);
+  overflow: hidden;
 }
 
-@keyframes appear {
-  from { transform: translateZ(-80px) rotateX(25deg); opacity: 0; }
-  to   { transform: translateZ(0) rotateX(0); opacity: 1; }
+h1 {
+  font-size: 2.2em;
+  padding: 20px;
+  animation: pop 0.4s ease;
 }
 
-.hint {
+@keyframes pop {
+  from {opacity:0; transform:scale(0.8);}
+  to {opacity:1; transform:scale(1);}
+}
+
+/* Foto (aman walau belum ada) */
+#photo {
   position: absolute;
-  bottom: 18px;
-  font-size: .75em;
-  opacity: .85;
-  text-align: center;
-}
-
-.photo-btn {
-  position: absolute;
-  top: 16px;
-  right: 16px;
-  padding: 9px 14px;
+  max-width: 70%;
   border-radius: 20px;
-  border: none;
-  font-size: .8em;
-  background: rgba(255,255,255,.9);
-  color: #333;
+  box-shadow: 0 0 30px rgba(255,255,255,0.6);
+  opacity: 0;
+  transform: scale(0.8);
+  transition: 0.5s;
 }
 
-.start-btn {
+/* Kamera HARUS ADA tapi disembunyikan */
+video {
   position: fixed;
-  inset: 0;
-  background: rgba(0,0,0,.55);
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  font-size: 1.5em;
-  font-weight: bold;
-  z-index: 10;
+  top: -1000px;
+  left: -1000px;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
 }
 </style>
 </head>
 
 <body>
 
-<div id="bg"></div>
-
-<div class="scene">
-  <div id="text" class="text3d">Tap MULAI 💕</div>
-</div>
-
-<div class="hint">
-  Gesture tangan ✋ | Shake 📱 | Voice 🎙️ | Swipe 👉 | Tap 👆
-</div>
-
-<button id="photoBtn" class="photo-btn">📷 Foto</button>
-<input type="file" id="photoInput" accept="image/*" hidden>
-
-<div id="start" class="start-btn">💗 MULAI 💗</div>
-
-<audio id="music" loop>
-  <source src="https://cdn.pixabay.com/audio/2022/03/15/audio_9c6a8f2b5a.mp3">
-</audio>
-
-<!-- Video kamera (DISembunyikan) -->
-<video id="video" autoplay playsinline style="display:none"></video>
-
-<!-- MediaPipe -->
-<script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
+<h1 id="text">Angkat telunjukmu ☝️</h1>
+<img id="photo" src="" alt="">
+<video id="video" autoplay muted playsinline></video>
 
 <script>
-/* ================= SLIDE ================= */
-const slides = [
-  "Hai Sayangku 💕",
-  "Aku Sayang Sama Kamu 🥰",
-  "Kamu itu rumahku 🏡❤️",
-  "Aku selalu di sini 🤍",
-  "Terima kasih sudah ada 🌹"
-];
+const text = document.getElementById("text");
+const video = document.getElementById("video");
+const photo = document.getElementById("photo");
 
-let index = 0;
-let lastTrigger = 0;
-const COOLDOWN = 1300;
-let started = false;
+let model;
+let lastGesture = "";
+let busy = false;
 
-const textEl = document.getElementById("text");
-const music = document.getElementById("music");
-
-function nextSlide() {
-  const now = Date.now();
-  if (now - lastTrigger < COOLDOWN) return;
-  index = (index + 1) % slides.length;
-  textEl.style.animation = "none";
-  textEl.offsetHeight;
-  textEl.style.animation = "";
-  textEl.innerText = slides[index];
-  lastTrigger = now;
-  navigator.vibrate?.(40);
+function show(msg) {
+  if (text.innerText === msg) return;
+  text.innerText = msg;
+  text.style.animation = "none";
+  text.offsetHeight;
+  text.style.animation = "pop 0.4s ease";
+  if (navigator.vibrate) navigator.vibrate(40);
 }
 
-/* ================= TAP & SWIPE ================= */
-document.body.addEventListener("click", () => started && nextSlide());
+function showPhoto() {
+  if (!photo.src) return;
+  photo.style.opacity = 1;
+  photo.style.transform = "scale(1)";
+}
 
-let startX = 0;
-document.body.addEventListener("touchstart", e => startX = e.touches[0].clientX);
-document.body.addEventListener("touchend", e => {
-  if (!started) return;
-  const dx = e.changedTouches[0].clientX - startX;
-  if (Math.abs(dx) > 60) nextSlide();
-});
+function hidePhoto() {
+  photo.style.opacity = 0;
+  photo.style.transform = "scale(0.8)";
+}
 
-/* ================= SHAKE ================= */
-let lastShake = 0;
-window.addEventListener("devicemotion", e => {
-  if (!started) return;
-  const a = e.accelerationIncludingGravity;
-  if (!a) return;
-  const strength = Math.abs(a.x) + Math.abs(a.y) + Math.abs(a.z);
-  if (strength > 28 && Date.now() - lastShake > COOLDOWN) {
-    lastShake = Date.now();
-    nextSlide();
+async function setupCamera() {
+  const stream = await navigator.mediaDevices.getUserMedia({
+    video: { facingMode: "user" }
+  });
+  video.srcObject = stream;
+  return new Promise(resolve => {
+    video.onloadedmetadata = () => resolve(video);
+  });
+}
+
+function fingerUp(tip, pip) {
+  return tip[1] < pip[1];
+}
+
+async function detect() {
+  if (busy) return;
+  busy = true;
+
+  const predictions = await model.estimateHands(video);
+
+  if (predictions.length > 0) {
+    const lm = predictions[0].landmarks;
+
+    const index = fingerUp(lm[8], lm[6]);
+    const middle = fingerUp(lm[12], lm[10]);
+    const ring = fingerUp(lm[16], lm[14]);
+    const pinky = fingerUp(lm[20], lm[18]);
+
+    const pinch = Math.hypot(
+      lm[4][0] - lm[8][0],
+      lm[4][1] - lm[8][1]
+    ) < 40;
+
+    if (index && !middle && !ring && !pinky) {
+      show("Hai Sayangku 💕");
+      hidePhoto();
+    }
+    else if (index && middle && !ring && !pinky) {
+      show("Aku Sayang Sama Kamu 🥰");
+      hidePhoto();
+    }
+    else if (pinch) {
+      show("Kamu itu rumahku 🏡❤️");
+      showPhoto();
+    }
+    else if (!index && !middle && !ring && !pinky) {
+      show("Angkat telunjukmu ☝️");
+      hidePhoto();
+    }
   }
-});
 
-/* ================= VOICE ================= */
-if ("webkitSpeechRecognition" in window) {
-  const rec = new webkitSpeechRecognition();
-  rec.lang = "id-ID";
-  rec.continuous = true;
-  rec.onresult = e => {
-    const t = e.results[e.results.length - 1][0].transcript.toLowerCase();
-    if (t.includes("lanjut") || t.includes("sayang") || t.includes("next")) {
-      nextSlide();
-    }
-  };
-  document.getElementById("start").onclick = () => rec.start();
+  busy = false;
+  requestAnimationFrame(detect);
 }
 
-/* ================= BACKGROUND FOTO ================= */
-const bg = document.getElementById("bg");
-const input = document.getElementById("photoInput");
-document.getElementById("photoBtn").onclick = () => input.click();
-
-const savedBg = localStorage.getItem("bgImage");
-if (savedBg) {
-  bg.style.background = `
-    linear-gradient(rgba(0,0,0,.45), rgba(0,0,0,.45)),
-    url(${savedBg}) center/cover no-repeat`;
-}
-
-input.onchange = () => {
-  const file = input.files[0];
-  if (!file) return;
-  const reader = new FileReader();
-  reader.onload = () => {
-    bg.style.opacity = 0;
-    setTimeout(() => {
-      bg.style.background = `
-        linear-gradient(rgba(0,0,0,.45), rgba(0,0,0,.45)),
-        url(${reader.result}) center/cover no-repeat`;
-      bg.style.opacity = 1;
-      localStorage.setItem("bgImage", reader.result);
-    }, 300);
-  };
-  reader.readAsDataURL(file);
-};
-
-/* ================= MEDIAPIPE HANDS ================= */
-let camera;
-const hands = new Hands({
-  locateFile: f => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${f}`
-});
-
-hands.setOptions({
-  maxNumHands: 1,
-  modelComplexity: 0,
-  minDetectionConfidence: 0.6,
-  minTrackingConfidence: 0.6
-});
-
-hands.onResults(r => {
-  if (!started || !r.multiHandLandmarks?.length) return;
-  const lm = r.multiHandLandmarks[0];
-  if (lm[8].y < lm[6].y) nextSlide(); // telunjuk
-});
-
-/* ================= START ================= */
-document.getElementById("start").onclick = async () => {
-  document.getElementById("start").remove();
-  started = true;
-  music.volume = 0.4;
-  music.play();
-
-  camera = new Camera(
-    document.getElementById("video"),
-    {
-      onFrame: async () => {
-        await hands.send({ image: video });
-      },
-      width: 640,
-      height: 480
-    }
-  );
-  camera.start();
-};
+(async () => {
+  await setupCamera();
+  model = await handpose.load();
+  detect();
+})();
 </script>
 
 </body>
