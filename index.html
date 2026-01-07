@@ -1,27 +1,157 @@
 <!DOCTYPE html>
-<html>
+<html lang="id">
 <head>
+<meta charset="UTF-8">
+<title>Bucin Finger Love 💕</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Tes Kamera</title>
+
+<!-- TensorFlow -->
+<script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.15.0/dist/tf.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/handpose@0.0.7/dist/handpose.min.js"></script>
+
+<style>
+body {
+  margin: 0;
+  height: 100vh;
+  background: linear-gradient(135deg, #ff5f8f, #ff9a9e);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  font-family: system-ui;
+  color: white;
+  text-align: center;
+  overflow: hidden;
+}
+
+h1 {
+  font-size: 2.2em;
+  padding: 20px;
+  animation: pop 0.4s ease;
+}
+
+@keyframes pop {
+  from {opacity:0; transform:scale(0.8);}
+  to {opacity:1; transform:scale(1);}
+}
+
+/* Foto (aman walau belum ada) */
+#photo {
+  position: absolute;
+  max-width: 70%;
+  border-radius: 20px;
+  box-shadow: 0 0 30px rgba(255,255,255,0.6);
+  opacity: 0;
+  transform: scale(0.8);
+  transition: 0.5s;
+}
+
+/* Kamera HARUS ADA tapi disembunyikan */
+video {
+  position: fixed;
+  top: -1000px;
+  left: -1000px;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+}
+</style>
 </head>
+
 <body>
 
-<h1 id="status">MENUNGGU...</h1>
-<video id="video" autoplay playsinline></video>
+<h1 id="text">Angkat telunjukmu ☝️</h1>
+<img id="photo" src="" alt="">
+<video id="video" autoplay muted playsinline></video>
 
 <script>
-const status = document.getElementById("status");
+const text = document.getElementById("text");
 const video = document.getElementById("video");
+const photo = document.getElementById("photo");
 
-navigator.mediaDevices.getUserMedia({ video: true })
-  .then(stream => {
-    video.srcObject = stream;
-    status.innerText = "KAMERA AKTIF ✅";
-  })
-  .catch(err => {
-    status.innerText = "KAMERA GAGAL ❌";
-    alert(err);
+let model;
+let lastGesture = "";
+let busy = false;
+
+function show(msg) {
+  if (text.innerText === msg) return;
+  text.innerText = msg;
+  text.style.animation = "none";
+  text.offsetHeight;
+  text.style.animation = "pop 0.4s ease";
+  if (navigator.vibrate) navigator.vibrate(40);
+}
+
+function showPhoto() {
+  if (!photo.src) return;
+  photo.style.opacity = 1;
+  photo.style.transform = "scale(1)";
+}
+
+function hidePhoto() {
+  photo.style.opacity = 0;
+  photo.style.transform = "scale(0.8)";
+}
+
+async function setupCamera() {
+  const stream = await navigator.mediaDevices.getUserMedia({
+    video: { facingMode: "user" }
   });
+  video.srcObject = stream;
+  return new Promise(resolve => {
+    video.onloadedmetadata = () => resolve(video);
+  });
+}
+
+function fingerUp(tip, pip) {
+  return tip[1] < pip[1];
+}
+
+async function detect() {
+  if (busy) return;
+  busy = true;
+
+  const predictions = await model.estimateHands(video);
+
+  if (predictions.length > 0) {
+    const lm = predictions[0].landmarks;
+
+    const index = fingerUp(lm[8], lm[6]);
+    const middle = fingerUp(lm[12], lm[10]);
+    const ring = fingerUp(lm[16], lm[14]);
+    const pinky = fingerUp(lm[20], lm[18]);
+
+    const pinch = Math.hypot(
+      lm[4][0] - lm[8][0],
+      lm[4][1] - lm[8][1]
+    ) < 40;
+
+    if (index && !middle && !ring && !pinky) {
+      show("Hai Sayangku 💕");
+      hidePhoto();
+    }
+    else if (index && middle && !ring && !pinky) {
+      show("Aku Sayang Sama Kamu 🥰");
+      hidePhoto();
+    }
+    else if (pinch) {
+      show("Kamu itu rumahku 🏡❤️");
+      showPhoto();
+    }
+    else if (!index && !middle && !ring && !pinky) {
+      show("Angkat telunjukmu ☝️");
+      hidePhoto();
+    }
+  }
+
+  busy = false;
+  requestAnimationFrame(detect);
+}
+
+(async () => {
+  await setupCamera();
+  model = await handpose.load();
+  detect();
+})();
 </script>
 
 </body>
