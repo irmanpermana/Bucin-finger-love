@@ -1,30 +1,84 @@
 <!DOCTYPE html>
-<html>
+<html lang="id">
 <head>
+<meta charset="UTF-8">
+<title>Bucin Shake 💕</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Tes Kamera</title>
+
+<style>
+body {
+  margin: 0;
+  height: 100vh;
+  background: linear-gradient(135deg, #ff5f8f, #ff9a9e);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  font-family: system-ui;
+  color: white;
+  text-align: center;
+  overflow: hidden;
+}
+
+h1 {
+  font-size: 2.3em;
+  padding: 20px;
+  animation: fade 0.5s ease;
+}
+
+@keyframes fade {
+  from { opacity: 0; transform: scale(0.9); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+.hint {
+  position: absolute;
+  bottom: 20px;
+  font-size: 0.9em;
+  opacity: 0.8;
+}
+</style>
 </head>
+
 <body>
 
-<h1 id="status">MENUNGGU...</h1>
-<video id="video" autoplay playsinline></video>
-<script>
-alert("WebGL: " + !!window.WebGLRenderingContext);
-<script>
-  
-<script>
-const status = document.getElementById("status");
-const video = document.getElementById("video");
+<h1 id="text">Goyangkan HP kamu 📱</h1>
+<div class="hint">Shake untuk lanjut 💕</div>
 
-navigator.mediaDevices.getUserMedia({ video: true })
-  .then(stream => {
-    video.srcObject = stream;
-    status.innerText = "KAMERA AKTIF ✅";
-  })
-  .catch(err => {
-    status.innerText = "KAMERA GAGAL ❌";
-    alert(err);
-  });
+<script>
+const slides = [
+  "Hai Sayangku 💕",
+  "Aku Sayang Sama Kamu 🥰",
+  "Kamu itu rumahku 🏡❤️",
+  "Terima kasih sudah ada 🤍",
+  "Aku selalu di sini untukmu 🌹"
+];
+
+let index = 0;
+let lastShake = 0;
+const SHAKE_THRESHOLD = 15;
+
+function showSlide() {
+  const text = document.getElementById("text");
+  text.style.animation = "none";
+  text.offsetHeight;
+  text.style.animation = "fade 0.5s ease";
+  text.innerText = slides[index];
+  if (navigator.vibrate) navigator.vibrate(50);
+}
+
+window.addEventListener("devicemotion", (event) => {
+  const acc = event.accelerationIncludingGravity;
+  if (!acc) return;
+
+  const total = Math.abs(acc.x) + Math.abs(acc.y) + Math.abs(acc.z);
+  const now = Date.now();
+
+  if (total > SHAKE_THRESHOLD && now - lastShake > 800) {
+    index = (index + 1) % slides.length;
+    showSlide();
+    lastShake = now;
+  }
+});
 </script>
 
 </body>
