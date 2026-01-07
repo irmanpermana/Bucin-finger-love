@@ -2,7 +2,7 @@
 <html lang="id">
 <head>
 <meta charset="UTF-8">
-<title>Bucin Shake 💕</title>
+<title>Bucin Interaktif 💕</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
 <style>
@@ -14,71 +14,148 @@ body {
   justify-content: center;
   align-items: center;
   font-family: system-ui;
-  color: white;
-  text-align: center;
   overflow: hidden;
+  color: white;
 }
 
-h1 {
-  font-size: 2.3em;
-  padding: 20px;
-  animation: fade 0.5s ease;
+.scene { perspective: 1000px; }
+
+.text3d {
+  font-size: 2.6em;
+  font-weight: 800;
+  text-align: center;
+  transform-style: preserve-3d;
+  animation: appear .7s cubic-bezier(.2,.8,.2,1);
+  text-shadow:
+    1px 1px 0 #e6004c,
+    2px 2px 0 #d60047,
+    3px 3px 0 #c60042,
+    4px 4px 10px rgba(0,0,0,.4);
 }
 
-@keyframes fade {
-  from { opacity: 0; transform: scale(0.9); }
-  to { opacity: 1; transform: scale(1); }
+@keyframes appear {
+  from {
+    transform: translateZ(-80px) rotateX(25deg);
+    opacity: 0;
+  }
+  to {
+    transform: translateZ(0) rotateX(0);
+    opacity: 1;
+  }
 }
 
 .hint {
   position: absolute;
-  bottom: 20px;
-  font-size: 0.9em;
-  opacity: 0.8;
+  bottom: 18px;
+  font-size: .85em;
+  opacity: .85;
+  text-align: center;
+}
+
+.start-btn {
+  position: absolute;
+  inset: 0;
+  background: rgba(0,0,0,.35);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  font-size: 1.4em;
+  font-weight: bold;
+  cursor: pointer;
 }
 </style>
 </head>
 
 <body>
 
-<h1 id="text">Goyangkan HP kamu 📱</h1>
-<div class="hint">Shake untuk lanjut 💕</div>
+<div class="scene">
+  <div id="text" class="text3d">Tap untuk mulai 💕</div>
+</div>
+
+<div class="hint">
+  📱 Shake HP<br>
+  🎙️ Ucap: “lanjut” / “sayang”
+</div>
+
+<div id="start" class="start-btn">💗 MULAI 💗</div>
+
+<!-- 🎵 MUSIK ROMANTIS -->
+<audio id="music" loop>
+  <!-- GANTI LINK INI JIKA MAU -->
+  <source src="https://cdn.pixabay.com/audio/2022/03/15/audio_9c6a8f2b5a.mp3" type="audio/mpeg">
+</audio>
 
 <script>
 const slides = [
   "Hai Sayangku 💕",
   "Aku Sayang Sama Kamu 🥰",
   "Kamu itu rumahku 🏡❤️",
-  "Terima kasih sudah ada 🤍",
-  "Aku selalu di sini untukmu 🌹"
+  "Aku selalu di sini 🤍",
+  "Terima kasih sudah ada 🌹"
 ];
 
 let index = 0;
-let lastShake = 0;
-const SHAKE_THRESHOLD = 15;
+let lastAction = 0;
+const COOLDOWN = 1200;
+let started = false;
 
-function showSlide() {
-  const text = document.getElementById("text");
-  text.style.animation = "none";
-  text.offsetHeight;
-  text.style.animation = "fade 0.5s ease";
-  text.innerText = slides[index];
-  if (navigator.vibrate) navigator.vibrate(50);
+// ===== GANTI SLIDE =====
+function nextSlide() {
+  const now = Date.now();
+  if (now - lastAction < COOLDOWN) return;
+
+  index = (index + 1) % slides.length;
+  const el = document.getElementById("text");
+  el.style.animation = "none";
+  el.offsetHeight;
+  el.style.animation = "appear .7s cubic-bezier(.2,.8,.2,1)";
+  el.innerText = slides[index];
+  lastAction = now;
+
+  if (navigator.vibrate) navigator.vibrate(40);
 }
 
-window.addEventListener("devicemotion", (event) => {
-  const acc = event.accelerationIncludingGravity;
-  if (!acc) return;
+// ===== SHAKE =====
+window.addEventListener("devicemotion", e => {
+  if (!started) return;
+  const a = e.accelerationIncludingGravity;
+  if (!a) return;
 
-  const total = Math.abs(acc.x) + Math.abs(acc.y) + Math.abs(acc.z);
-  const now = Date.now();
-
-  if (total > SHAKE_THRESHOLD && now - lastShake > 800) {
-    index = (index + 1) % slides.length;
-    showSlide();
-    lastShake = now;
-  }
+  const mag = Math.sqrt(a.x*a.x + a.y*a.y + a.z*a.z);
+  if (mag > 26) nextSlide();
 });
+
+// ===== VOICE =====
+let rec;
+function startVoice() {
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SR) return;
+
+  rec = new SR();
+  rec.lang = "id-ID";
+  rec.continuous = true;
+
+  rec.onresult = e => {
+    const text = e.results[e.results.length - 1][0].transcript.toLowerCase();
+    if (text.includes("lanjut") || text.includes("sayang") || text.includes("next")) {
+      nextSlide();
+    }
+  };
+
+  rec.start();
+}
+
+// ===== START =====
+document.getElementById("start").onclick = () => {
+  if (started) return;
+  started = true;
+
+  document.getElementById("start").style.display = "none";
+  document.getElementById("text").innerText = slides[0];
+
+  document.getElementById("music").play();
+  startVoice();
+};
 </script>
 
 </body>
