@@ -9,19 +9,30 @@
 body {
   margin: 0;
   height: 100vh;
-  background: linear-gradient(135deg, #ff5f8f, #ff9a9e);
+  overflow: hidden;
+  font-family: system-ui, sans-serif;
+  color: white;
   display: flex;
   justify-content: center;
   align-items: center;
-  font-family: system-ui;
-  overflow: hidden;
-  color: white;
+}
+
+#bg {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  background:
+    linear-gradient(rgba(0,0,0,.45), rgba(0,0,0,.45)),
+    linear-gradient(135deg, #ff5f8f, #ff9a9e);
+  background-size: cover;
+  background-position: center;
+  transition: opacity .6s ease;
 }
 
 .scene { perspective: 1000px; }
 
 .text3d {
-  font-size: 2.6em;
+  font-size: 2.4em;
   font-weight: 800;
   text-align: center;
   transform-style: preserve-3d;
@@ -30,62 +41,78 @@ body {
     1px 1px 0 #e6004c,
     2px 2px 0 #d60047,
     3px 3px 0 #c60042,
-    4px 4px 10px rgba(0,0,0,.4);
+    4px 4px 12px rgba(0,0,0,.45);
 }
 
 @keyframes appear {
-  from {
-    transform: translateZ(-80px) rotateX(25deg);
-    opacity: 0;
-  }
-  to {
-    transform: translateZ(0) rotateX(0);
-    opacity: 1;
-  }
+  from { transform: translateZ(-80px) rotateX(25deg); opacity: 0; }
+  to   { transform: translateZ(0) rotateX(0); opacity: 1; }
 }
 
 .hint {
   position: absolute;
   bottom: 18px;
-  font-size: .85em;
+  font-size: .75em;
   opacity: .85;
   text-align: center;
 }
 
-.start-btn {
+.photo-btn {
   position: absolute;
+  top: 16px;
+  right: 16px;
+  padding: 9px 14px;
+  border-radius: 20px;
+  border: none;
+  font-size: .8em;
+  background: rgba(255,255,255,.9);
+  color: #333;
+}
+
+.start-btn {
+  position: fixed;
   inset: 0;
-  background: rgba(0,0,0,.35);
+  background: rgba(0,0,0,.55);
   display: flex;
   justify-content: center;
   align-items: center;
-  font-size: 1.4em;
+  font-size: 1.5em;
   font-weight: bold;
-  cursor: pointer;
+  z-index: 10;
 }
 </style>
 </head>
 
 <body>
 
+<div id="bg"></div>
+
 <div class="scene">
-  <div id="text" class="text3d">Tap untuk mulai 💕</div>
+  <div id="text" class="text3d">Tap MULAI 💕</div>
 </div>
 
 <div class="hint">
-  📱 Shake HP<br>
-  🎙️ Ucap: “lanjut” / “sayang”
+  Gesture tangan ✋ | Shake 📱 | Voice 🎙️ | Swipe 👉 | Tap 👆
 </div>
+
+<button id="photoBtn" class="photo-btn">📷 Foto</button>
+<input type="file" id="photoInput" accept="image/*" hidden>
 
 <div id="start" class="start-btn">💗 MULAI 💗</div>
 
-<!-- 🎵 MUSIK ROMANTIS -->
 <audio id="music" loop>
-  <!-- GANTI LINK INI JIKA MAU -->
-  <source src="https://cdn.pixabay.com/audio/2022/03/15/audio_9c6a8f2b5a.mp3" type="audio/mpeg">
+  <source src="https://cdn.pixabay.com/audio/2022/03/15/audio_9c6a8f2b5a.mp3">
 </audio>
 
+<!-- Video kamera (DISembunyikan) -->
+<video id="video" autoplay playsinline style="display:none"></video>
+
+<!-- MediaPipe -->
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
+
 <script>
+/* ================= SLIDE ================= */
 const slides = [
   "Hai Sayangku 💕",
   "Aku Sayang Sama Kamu 🥰",
@@ -95,66 +122,129 @@ const slides = [
 ];
 
 let index = 0;
-let lastAction = 0;
-const COOLDOWN = 1200;
+let lastTrigger = 0;
+const COOLDOWN = 1300;
 let started = false;
 
-// ===== GANTI SLIDE =====
+const textEl = document.getElementById("text");
+const music = document.getElementById("music");
+
 function nextSlide() {
   const now = Date.now();
-  if (now - lastAction < COOLDOWN) return;
-
+  if (now - lastTrigger < COOLDOWN) return;
   index = (index + 1) % slides.length;
-  const el = document.getElementById("text");
-  el.style.animation = "none";
-  el.offsetHeight;
-  el.style.animation = "appear .7s cubic-bezier(.2,.8,.2,1)";
-  el.innerText = slides[index];
-  lastAction = now;
-
-  if (navigator.vibrate) navigator.vibrate(40);
+  textEl.style.animation = "none";
+  textEl.offsetHeight;
+  textEl.style.animation = "";
+  textEl.innerText = slides[index];
+  lastTrigger = now;
+  navigator.vibrate?.(40);
 }
 
-// ===== SHAKE =====
+/* ================= TAP & SWIPE ================= */
+document.body.addEventListener("click", () => started && nextSlide());
+
+let startX = 0;
+document.body.addEventListener("touchstart", e => startX = e.touches[0].clientX);
+document.body.addEventListener("touchend", e => {
+  if (!started) return;
+  const dx = e.changedTouches[0].clientX - startX;
+  if (Math.abs(dx) > 60) nextSlide();
+});
+
+/* ================= SHAKE ================= */
+let lastShake = 0;
 window.addEventListener("devicemotion", e => {
   if (!started) return;
   const a = e.accelerationIncludingGravity;
   if (!a) return;
-
-  const mag = Math.sqrt(a.x*a.x + a.y*a.y + a.z*a.z);
-  if (mag > 26) nextSlide();
+  const strength = Math.abs(a.x) + Math.abs(a.y) + Math.abs(a.z);
+  if (strength > 28 && Date.now() - lastShake > COOLDOWN) {
+    lastShake = Date.now();
+    nextSlide();
+  }
 });
 
-// ===== VOICE =====
-let rec;
-function startVoice() {
-  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-  if (!SR) return;
-
-  rec = new SR();
+/* ================= VOICE ================= */
+if ("webkitSpeechRecognition" in window) {
+  const rec = new webkitSpeechRecognition();
   rec.lang = "id-ID";
   rec.continuous = true;
-
   rec.onresult = e => {
-    const text = e.results[e.results.length - 1][0].transcript.toLowerCase();
-    if (text.includes("lanjut") || text.includes("sayang") || text.includes("next")) {
+    const t = e.results[e.results.length - 1][0].transcript.toLowerCase();
+    if (t.includes("lanjut") || t.includes("sayang") || t.includes("next")) {
       nextSlide();
     }
   };
-
-  rec.start();
+  document.getElementById("start").onclick = () => rec.start();
 }
 
-// ===== START =====
-document.getElementById("start").onclick = () => {
-  if (started) return;
+/* ================= BACKGROUND FOTO ================= */
+const bg = document.getElementById("bg");
+const input = document.getElementById("photoInput");
+document.getElementById("photoBtn").onclick = () => input.click();
+
+const savedBg = localStorage.getItem("bgImage");
+if (savedBg) {
+  bg.style.background = `
+    linear-gradient(rgba(0,0,0,.45), rgba(0,0,0,.45)),
+    url(${savedBg}) center/cover no-repeat`;
+}
+
+input.onchange = () => {
+  const file = input.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = () => {
+    bg.style.opacity = 0;
+    setTimeout(() => {
+      bg.style.background = `
+        linear-gradient(rgba(0,0,0,.45), rgba(0,0,0,.45)),
+        url(${reader.result}) center/cover no-repeat`;
+      bg.style.opacity = 1;
+      localStorage.setItem("bgImage", reader.result);
+    }, 300);
+  };
+  reader.readAsDataURL(file);
+};
+
+/* ================= MEDIAPIPE HANDS ================= */
+let camera;
+const hands = new Hands({
+  locateFile: f => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${f}`
+});
+
+hands.setOptions({
+  maxNumHands: 1,
+  modelComplexity: 0,
+  minDetectionConfidence: 0.6,
+  minTrackingConfidence: 0.6
+});
+
+hands.onResults(r => {
+  if (!started || !r.multiHandLandmarks?.length) return;
+  const lm = r.multiHandLandmarks[0];
+  if (lm[8].y < lm[6].y) nextSlide(); // telunjuk
+});
+
+/* ================= START ================= */
+document.getElementById("start").onclick = async () => {
+  document.getElementById("start").remove();
   started = true;
+  music.volume = 0.4;
+  music.play();
 
-  document.getElementById("start").style.display = "none";
-  document.getElementById("text").innerText = slides[0];
-
-  document.getElementById("music").play();
-  startVoice();
+  camera = new Camera(
+    document.getElementById("video"),
+    {
+      onFrame: async () => {
+        await hands.send({ image: video });
+      },
+      width: 640,
+      height: 480
+    }
+  );
+  camera.start();
 };
 </script>
 
