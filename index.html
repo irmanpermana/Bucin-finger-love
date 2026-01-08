@@ -17,13 +17,13 @@ html,body{
   overflow:hidden;
 }
 
-/* canvas partikel */
+/* Canvas */
 canvas{
   position:absolute;
   inset:0;
 }
 
-/* FOTO – TENGAH LAYAR */
+/* FOTO – TENGAH */
 #photo{
   position:absolute;
   top:50%;
@@ -40,7 +40,6 @@ canvas{
   box-shadow:0 0 80px rgba(0,150,255,.7);
 }
 
-/* kamera disembunyikan */
 video{display:none}
 </style>
 </head>
@@ -48,14 +47,11 @@ video{display:none}
 <body>
 
 <canvas id="c"></canvas>
-
-<!-- GANTI FOTO DI SINI -->
 <img id="photo" src="foto/IMG-20251103-WA0038.jpg">
-
 <video id="video" autoplay playsinline></video>
 
 <script>
-/* ===== SLIDE TEXT ===== */
+/* ===== TEXT SLIDES ===== */
 const slides=[
  "Hai Sayangku 🥰",
  "Aku Sayang Kamu 😘",
@@ -67,6 +63,7 @@ const slides=[
 /* ===== CANVAS ===== */
 const canvas=document.getElementById("c");
 const ctx=canvas.getContext("2d");
+
 function resize(){
   canvas.width=innerWidth;
   canvas.height=innerHeight;
@@ -76,16 +73,46 @@ addEventListener("resize",resize);
 
 let particles=[];
 
-/* ===== PARTICLE TEXT ===== */
+/* ===== MULTILINE TEXT → PARTICLES ===== */
+function wrapText(text,maxWidth){
+  const words=text.split(" ");
+  const lines=[];
+  let line="";
+
+  for(const w of words){
+    const test=line+w+" ";
+    if(ctx.measureText(test).width>maxWidth && line){
+      lines.push(line.trim());
+      line=w+" ";
+    }else{
+      line=test;
+    }
+  }
+  lines.push(line.trim());
+  return lines;
+}
+
 function drawParticles(text){
   particles=[];
   ctx.clearRect(0,0,canvas.width,canvas.height);
 
-  const size=Math.min(canvas.width/12,canvas.height/8);
-  ctx.fillStyle="white";
-  ctx.font=`bold ${size}px system-ui`;
+  const fontSize=Math.min(canvas.width/12,canvas.height/8);
+  ctx.font=`bold ${fontSize}px system-ui`;
   ctx.textAlign="center";
-  ctx.fillText(text,canvas.width/2,canvas.height/2);
+  ctx.fillStyle="white";
+
+  const maxWidth=canvas.width*0.8;
+  const lines=wrapText(text,maxWidth);
+
+  const startY=canvas.height/2-(lines.length-1)*fontSize*0.6;
+
+  lines.forEach((line,i)=>{
+    ctx.fillText(
+      line,
+      canvas.width/2,
+      startY+i*fontSize*1.2
+    );
+  });
 
   const data=ctx.getImageData(0,0,canvas.width,canvas.height).data;
   ctx.clearRect(0,0,canvas.width,canvas.height);
@@ -164,32 +191,36 @@ async function detect(){
   const ring=up(lm[16],lm[14]);
   const pink=up(lm[20],lm[18]);
 
-  // ☝️ Slide 1
+  // ☝️
   if(idx&&!mid&&!ring&&!pink&&last!=="1"){
     clearAll(); drawParticles(slides[0]); animate(); last="1";
   }
-  // ✌️ Slide 2
+  // ✌️
   else if(idx&&mid&&!ring&&!pink&&last!=="2"){
     clearAll(); drawParticles(slides[1]); animate(); last="2";
   }
-  // 🤟 Slide 3
+  // 🤟
   else if(idx&&!mid&&!ring&&pink&&last!=="3"){
     clearAll(); drawParticles(slides[2]); animate(); last="3";
   }
-  // ✋ Slide 4
+  // ✋
   else if(idx&&mid&&ring&&pink&&last!=="4"){
     clearAll(); drawParticles(slides[3]); animate(); last="4";
   }
-  // ✊ Slide 5
+  // ✊
   else if(!idx&&!mid&&!ring&&!pink&&last!=="5"){
     clearAll(); drawParticles(slides[4]); animate(); last="5";
   }
 
-  // ✌️✌️ DUA TANGAN → FOTO
+  /* ✌️✌️ DUA TANGAN VICTORY → FOTO */
   if(h.length===2){
-    const a=h[0].landmarks,b=h[1].landmarks;
-    if(up(a[8],a[6])&&up(a[12],a[10])&&
-       up(b[8],b[6])&&up(b[12],b[10])){
+    const a=h[0].landmarks;
+    const b=h[1].landmarks;
+
+    const victoryA=up(a[8],a[6])&&up(a[12],a[10])&&!up(a[16],a[14]);
+    const victoryB=up(b[8],b[6])&&up(b[12],b[10])&&!up(b[16],b[14]);
+
+    if(victoryA && victoryB){
       showPhoto();
     }
   }
