@@ -127,7 +127,13 @@ const distance=(a,b)=>Math.hypot(a[0]-b[0],a[1]-b[1]);
 /* DETECT GESTURE TOLERAN */
 async function detect(){
   const h=await model.estimateHands(video);
-  if(!h.length){requestAnimationFrame(detect);return;}
+  
+  // Jika tidak ada tangan, hilangkan semua
+  if(!h.length){ 
+    particles=[]; hidePhoto(); currentSlide=-1;
+    requestAnimationFrame(detect);
+    return;
+  }
 
   const lm=h[0].landmarks;
   const idx=up(lm[8],lm[6]),
@@ -137,12 +143,11 @@ async function detect(){
 
   let gesture="none";
 
-  // 👌 Foto: hanya cek ibu jari + telunjuk dekat (toleran jari lain)
-  if(distance(lm[4],lm[8])<45) { gesture="photo"; showPhoto(); }
-  else hidePhoto();
+  // 👌 Foto: cek ibu jari + telunjuk dekat
+  if(distance(lm[4],lm[8])<45){ gesture="photo"; showPhoto(); }
 
   // ☝️ Slide 1
-  if(idx && !mid && !ring && !pink) gesture="one";
+  else if(idx && !mid && !ring && !pink) gesture="one";
 
   // ✌️ Slide 2
   else if(idx && mid && (!ring || ring) && !pink) gesture="two";
@@ -150,10 +155,14 @@ async function detect(){
   // 🤟 Slide 3: index + pinky
   else if(idx && pink && (!mid || mid) && (!ring || ring)) gesture="three";
 
-  // ✋ Slide 4: toleran ibu jari
-  else if(idx && mid && ring && pink) gesture="four";
+  // ✋ Slide 4 stabil: cek minimal 3 dari 4 jari utama (index, middle, ring, pinky)
+  else{
+    const fingersUp = [idx, mid, ring, pink];
+    const upCount = fingersUp.filter(v => v).length;
+    if(upCount >= 3) gesture="four";
+  }
 
-  // 👍 Slide 5: ibu jari dominan, jari lain sebagian menutup
+  // 👍 Slide 5: ibu jari dominan, index+middle menutup cukup
   const thumbDist = distance(lm[4], lm[2]);
   const fingersClosed = (lm[8][1] > lm[6][1] && lm[12][1] > lm[10][1]);
   if(thumbDist > 30 && fingersClosed) gesture="five";
@@ -162,14 +171,18 @@ async function detect(){
   if(gesture===lastGesture) gestureFrames++;
   else {gestureFrames=0; lastGesture=gesture;}
 
+  // Switch slide hanya jika gesture valid, selain itu layar kosong
   if(gestureFrames>=HOLD && Date.now()-lastSwitch>COOLDOWN){
-    const map={one:0,two:1,three:2,four:3,five:4};
-    if(map[gesture]!==undefined && currentSlide!==map[gesture]){
-      drawParticles(slides[map[gesture]]);
-      currentSlide=map[gesture];
+    const map={one:0,two:1,three:2,four:3,five:4,photo:-1};
+    if(map[gesture]!==undefined && gesture!=="none"){
+      if(gesture!=="photo") drawParticles(slides[map[gesture]]);
+      currentSlide=gesture;
       lastSwitch=Date.now();
     }
   }
+
+  // Jika gesture tidak valid / none → hilangkan semua
+  if(gesture==="none"){ particles=[]; hidePhoto(); currentSlide=-1; }
 
   requestAnimationFrame(detect);
 }
