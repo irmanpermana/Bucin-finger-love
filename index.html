@@ -2,28 +2,29 @@
 <html lang="id">
 <head>
 <meta charset="UTF-8">
-<title>Bucin Particle Only</title>
+<title>Cinta Kita 💙</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
+<!-- TensorFlow -->
 <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.15.0/dist/tf.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/handpose@0.0.7/dist/handpose.min.js"></script>
 
 <style>
 html,body{
   margin:0;
-  width:100%;
-  height:100%;
-  background:black;
+  padding:0;
+  background:#000;
   overflow:hidden;
+  font-family:system-ui;
 }
 
-/* Canvas */
+/* Canvas partikel */
 canvas{
-  position:absolute;
+  position:fixed;
   inset:0;
 }
 
-/* FOTO – TENGAH */
+/* Foto */
 #photo{
   position:absolute;
   top:50%;
@@ -33,14 +34,17 @@ canvas{
   border-radius:20px;
   opacity:0;
   filter:blur(14px);
-  transition:
-    opacity 1s ease,
-    transform 1s ease,
-    filter 1s ease;
-  box-shadow:0 0 80px rgba(0,150,255,.7);
+  transition:1s ease;
+  box-shadow:0 0 80px rgba(0,150,255,.6);
 }
 
-video{display:none}
+/* Kamera disembunyikan */
+video{
+  position:fixed;
+  width:1px;
+  height:1px;
+  opacity:0;
+}
 </style>
 </head>
 
@@ -48,85 +52,83 @@ video{display:none}
 
 <canvas id="c"></canvas>
 <img id="photo" src="foto/IMG-20251103-WA0038.jpg">
-<video id="video" autoplay playsinline></video>
+<video id="video" autoplay muted playsinline></video>
 
 <script>
-/* ===== TEXT SLIDES ===== */
+const canvas = document.getElementById("c");
+const ctx = canvas.getContext("2d");
+const video = document.getElementById("video");
+const photo = document.getElementById("photo");
+
+canvas.width = innerWidth;
+canvas.height = innerHeight;
+addEventListener("resize",()=>{
+  canvas.width = innerWidth;
+  canvas.height = innerHeight;
+});
+
+let model;
+let particles=[];
+let currentSlide=-1;
+
 const slides=[
- "Hai Sayangku 🥰",
- "Aku Sayang Kamu 😘",
- "Kamu adalah Rumah bagiku 🏡",
- "Aku Berharap Kita Bisa Terus Bersama Sampai Kapanpun 🫶🏻🤗",
- "Terimakasih Sayang Udah Mau Nerima Aku Dengan Segala Kekuranganku.. 🥰"
+  "Hai Sayangku 🥰",
+  "Aku Sayang Kamu 😘",
+  "Kamu adalah Rumah bagiku 🏡",
+  "Aku berharap kita bisa terus bersama sampai kapanpun 🫶🏻🤗",
+  "Terimakasih sayang sudah menerima aku dengan segala kekuranganku 🥰"
 ];
 
-/* ===== CANVAS ===== */
-const canvas=document.getElementById("c");
-const ctx=canvas.getContext("2d");
-
-function resize(){
-  canvas.width=innerWidth;
-  canvas.height=innerHeight;
-}
-resize();
-addEventListener("resize",resize);
-
-let particles=[];
-
-/* ===== MULTILINE TEXT → PARTICLES ===== */
-function wrapText(text,maxWidth){
-  const words=text.split(" ");
-  const lines=[];
-  let line="";
-
-  for(const w of words){
-    const test=line+w+" ";
-    if(ctx.measureText(test).width>maxWidth && line){
-      lines.push(line.trim());
-      line=w+" ";
-    }else{
-      line=test;
-    }
-  }
-  lines.push(line.trim());
-  return lines;
+function clearAll(){
+  particles=[];
+  currentSlide=-1;
+  hidePhoto();
 }
 
 function drawParticles(text){
   particles=[];
   ctx.clearRect(0,0,canvas.width,canvas.height);
 
-  const fontSize=Math.min(canvas.width/12,canvas.height/8);
-  ctx.font=`bold ${fontSize}px system-ui`;
+  const maxWidth = canvas.width*0.8;
+  let fontSize=72;
+
+  do{
+    ctx.font=`bold ${fontSize}px system-ui`;
+    fontSize-=2;
+  }while(ctx.measureText(text).width>maxWidth);
+
+  ctx.fillStyle="#0af";
   ctx.textAlign="center";
-  ctx.fillStyle="white";
+  ctx.textBaseline="middle";
 
-  const maxWidth=canvas.width*0.8;
-  const lines=wrapText(text,maxWidth);
+  const words=text.split(" ");
+  let lines=[],line="";
 
-  const startY=canvas.height/2-(lines.length-1)*fontSize*0.6;
+  for(let w of words){
+    let test=line+w+" ";
+    if(ctx.measureText(test).width>maxWidth){
+      lines.push(line);
+      line=w+" ";
+    }else line=test;
+  }
+  lines.push(line);
 
-  lines.forEach((line,i)=>{
-    ctx.fillText(
-      line,
-      canvas.width/2,
-      startY+i*fontSize*1.2
-    );
+  lines.forEach((l,i)=>{
+    ctx.fillText(l,canvas.width/2,
+      canvas.height/2 + i*fontSize*1.2 - (lines.length-1)*fontSize/2);
   });
 
-  const data=ctx.getImageData(0,0,canvas.width,canvas.height).data;
+  const img=ctx.getImageData(0,0,canvas.width,canvas.height);
   ctx.clearRect(0,0,canvas.width,canvas.height);
 
-  for(let y=0;y<canvas.height;y+=4){
-    for(let x=0;x<canvas.width;x+=4){
-      const i=(y*canvas.width+x)*4;
-      if(data[i+3]>120){
+  for(let y=0;y<img.height;y+=4){
+    for(let x=0;x<img.width;x+=4){
+      if(img.data[(y*img.width+x)*4+3]>0){
         particles.push({
           x:Math.random()*canvas.width,
           y:Math.random()*canvas.height,
           tx:x,
-          ty:y,
-          a:0
+          ty:y
         });
       }
     }
@@ -136,23 +138,16 @@ function drawParticles(text){
 function animate(){
   ctx.clearRect(0,0,canvas.width,canvas.height);
   particles.forEach(p=>{
-    p.x+=(p.tx-p.x)*0.06;
-    p.y+=(p.ty-p.y)*0.06;
-    p.a=Math.min(p.a+.02,1);
-    ctx.fillStyle=`rgba(0,150,255,${p.a})`;
-    ctx.fillRect(p.x,p.y,1.2,1.2);
+    p.x+=(p.tx-p.x)*0.08;
+    p.y+=(p.ty-p.y)*0.08;
+    ctx.fillStyle="#0af";
+    ctx.fillRect(p.x,p.y,1.5,1.5);
   });
-  if(particles.length)requestAnimationFrame(animate);
+  requestAnimationFrame(animate);
 }
+animate();
 
-function clearAll(){
-  particles=[];
-  ctx.clearRect(0,0,canvas.width,canvas.height);
-  hidePhoto();
-}
-
-/* ===== PHOTO ===== */
-const photo=document.getElementById("photo");
+/* FOTO */
 function showPhoto(){
   photo.style.opacity=1;
   photo.style.transform="translate(-50%,-50%) scale(1)";
@@ -164,26 +159,24 @@ function hidePhoto(){
   photo.style.filter="blur(14px)";
 }
 
-/* ===== CAMERA ===== */
-const video=document.getElementById("video");
-async function cam(){
+/* CAMERA */
+async function setupCamera(){
   const s=await navigator.mediaDevices.getUserMedia({video:{facingMode:"user"}});
   video.srcObject=s;
   return new Promise(r=>video.onloadedmetadata=r);
 }
 
-/* ===== HAND DETECTION ===== */
-let model,last="";
-function up(t,p){return t[1]<p[1];}
+/* UTIL */
+function up(t,p){ return t[1]<p[1]; }
+function isPinch(lm){
+  return Math.hypot(lm[4][0]-lm[8][0], lm[4][1]-lm[8][1])<40;
+}
 
+/* DETECT */
 async function detect(){
   const h=await model.estimateHands(video);
 
-  if(!h.length){
-    clearAll();
-    last="";
-    return requestAnimationFrame(detect);
-  }
+  if(!h.length){ clearAll(); requestAnimationFrame(detect); return; }
 
   const lm=h[0].landmarks;
   const idx=up(lm[8],lm[6]);
@@ -191,56 +184,35 @@ async function detect(){
   const ring=up(lm[16],lm[14]);
   const pink=up(lm[20],lm[18]);
 
-  // ☝️
-  if(idx&&!mid&&!ring&&!pink&&last!=="1"){
-    clearAll(); drawParticles(slides[0]); animate(); last="1";
+  // Slide gestures
+  if(idx&&!mid&&!ring&&!pink && currentSlide!==0){
+    drawParticles(slides[0]); currentSlide=0;
   }
-  // ✌️
-  else if(idx&&mid&&!ring&&!pink&&last!=="2"){
-    clearAll(); drawParticles(slides[1]); animate(); last="2";
+  else if(idx&&mid&&!ring&&!pink && currentSlide!==1){
+    drawParticles(slides[1]); currentSlide=1;
   }
-  // 🤟
-  else if(idx&&!mid&&!ring&&pink&&last!=="3"){
-    clearAll(); drawParticles(slides[2]); animate(); last="3";
+  else if(idx&&mid&&ring&&!pink && currentSlide!==2){
+    drawParticles(slides[2]); currentSlide=2;
   }
-  // ✋
-  else if(idx&&mid&&ring&&pink&&last!=="4"){
-    clearAll(); drawParticles(slides[3]); animate(); last="4";
+  else if(idx&&mid&&ring&&pink && currentSlide!==3){
+    drawParticles(slides[3]); currentSlide=3;
   }
-  // ✊
-  else if(!idx&&!mid&&!ring&&!pink&&last!=="5"){
-    clearAll(); drawParticles(slides[4]); animate(); last="5";
+  else if(!idx&&!mid&&!ring&&!pink && currentSlide!==4){
+    drawParticles(slides[4]); currentSlide=4;
   }
 
-  /* ✌️✌️ DUA TANGAN VICTORY → FOTO */
-  let pinchDetected = false;
-
-for(const hand of h){
-  if(isPinch(hand.landmarks)){
-    pinchDetected = true;
-    break;
+  // PINCH FOTO
+  let pinch=false;
+  for(const hand of h){
+    if(isPinch(hand.landmarks)){ pinch=true; break; }
   }
-}
-
-if(pinchDetected){
-  showPhoto();
-}else{
-  hidePhoto();
-}
-}
-
-if(victoryCount >= 2){
-  showPhoto();
-}else{
-  hidePhoto();
-}
+  pinch?showPhoto():hidePhoto();
 
   requestAnimationFrame(detect);
 }
 
-/* ===== START ===== */
 (async()=>{
-  await cam();
+  await setupCamera();
   model=await handpose.load();
   detect();
 })();
