@@ -2,133 +2,71 @@
 <html lang="id">
 <head>
 <meta charset="UTF-8">
-<title>Bucin Cinematic 💙</title>
+<title>Bucin Particle Only</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-<!-- TensorFlow -->
 <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.15.0/dist/tf.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/handpose@0.0.7/dist/handpose.min.js"></script>
 
 <style>
 html,body{
   margin:0;
-  padding:0;
   width:100%;
   height:100%;
   background:black;
   overflow:hidden;
-  font-family:system-ui;
 }
 
-/* ===== TEXT ===== */
-#content{
-  position:absolute;
-  inset:0;
-  display:flex;
-  justify-content:center;
-  align-items:center;
-  color:white;
-  font-size:2em;
-  text-align:center;
-
-  opacity:0;
-  transform:scale(.85);
-  filter:blur(14px);
-
-  transition:
-    opacity .8s ease,
-    transform 1s ease,
-    filter 1s ease;
-}
-
-#content.show{
-  opacity:1;
-  transform:scale(1);
-  filter:blur(0);
-  animation:float 4s ease-in-out infinite;
-}
-
-@keyframes float{
-  0%{transform:scale(1) translateY(0)}
-  50%{transform:scale(1) translateY(-6px)}
-  100%{transform:scale(1) translateY(0)}
-}
-
-/* ===== HEART ===== */
-#heart{
-  font-size:4em;
-  animation:pulse 1.6s infinite;
-}
-
-@keyframes pulse{
-  0%{transform:scale(1);opacity:.7}
-  50%{transform:scale(1.2);opacity:1}
-  100%{transform:scale(1);opacity:.7}
-}
-
-/* ===== CANVAS ===== */
+/* canvas partikel */
 canvas{
   position:absolute;
   inset:0;
-  pointer-events:none;
 }
 
-/* ===== PHOTO ===== */
+/* FOTO – TENGAH LAYAR */
 #photo{
   position:absolute;
+  top:50%;
+  left:50%;
+  transform:translate(-50%,-50%) scale(.6);
   max-width:70%;
-  border-radius:22px;
+  border-radius:20px;
   opacity:0;
-  transform:scale(.6);
   filter:blur(14px);
-  transition:1s ease;
-  box-shadow:0 0 80px rgba(0,150,255,.8);
+  transition:
+    opacity 1s ease,
+    transform 1s ease,
+    filter 1s ease;
+  box-shadow:0 0 80px rgba(0,150,255,.7);
 }
 
-/* ===== CAMERA (HIDDEN) ===== */
-video{
-  position:fixed;
-  width:1px;
-  height:1px;
-  opacity:0;
-}
+/* kamera disembunyikan */
+video{display:none}
 </style>
 </head>
 
 <body>
 
-<canvas id="particleCanvas"></canvas>
+<canvas id="c"></canvas>
 
-<div id="content">
-  <div id="heart">❤️</div>
-</div>
-
-<!-- ganti foto di sini -->
+<!-- GANTI FOTO DI SINI -->
 <img id="photo" src="foto/IMG-20251103-WA0038.jpg">
-<video id="video" autoplay muted playsinline></video>
+
+<video id="video" autoplay playsinline></video>
 
 <script>
-/* ===== SLIDES ===== */
+/* ===== SLIDE TEXT ===== */
 const slides=[
-  "Hai Sayangku 🥰",
-  "Aku Sayang Kamu 😘",
-  "Kamu adalah Rumah bagiku 🏡",
-  "Aku Berharap Kita Bisa Terus Bersama Sampai Kapanpun 🫶🏻🤗",
-  "Terimakasih Sayang Udah Mau Nerima Aku Dengan Segala Kekuranganku.. 🥰"
+ "Hai Sayangku 🥰",
+ "Aku Sayang Kamu 😘",
+ "Kamu adalah Rumah bagiku 🏡",
+ "Aku Berharap Kita Bisa Terus Bersama Sampai Kapanpun 🫶🏻🤗",
+ "Terimakasih Sayang Udah Mau Nerima Aku Dengan Segala Kekuranganku.. 🥰"
 ];
-let index=-1;
 
-/* ===== ELEMENT ===== */
-const content=document.getElementById("content");
-const heart=document.getElementById("heart");
-const photo=document.getElementById("photo");
-const video=document.getElementById("video");
-
-/* ===== PARTICLE ===== */
-const canvas=document.getElementById("particleCanvas");
+/* ===== CANVAS ===== */
+const canvas=document.getElementById("c");
 const ctx=canvas.getContext("2d");
-let particles=[];
-
 function resize(){
   canvas.width=innerWidth;
   canvas.height=innerHeight;
@@ -136,22 +74,26 @@ function resize(){
 resize();
 addEventListener("resize",resize);
 
-function createParticles(text){
+let particles=[];
+
+/* ===== PARTICLE TEXT ===== */
+function drawParticles(text){
   particles=[];
   ctx.clearRect(0,0,canvas.width,canvas.height);
 
+  const size=Math.min(canvas.width/12,canvas.height/8);
   ctx.fillStyle="white";
-  ctx.font="bold 42px system-ui";
+  ctx.font=`bold ${size}px system-ui`;
   ctx.textAlign="center";
   ctx.fillText(text,canvas.width/2,canvas.height/2);
 
   const data=ctx.getImageData(0,0,canvas.width,canvas.height).data;
   ctx.clearRect(0,0,canvas.width,canvas.height);
 
-  for(let y=0;y<canvas.height;y+=6){
-    for(let x=0;x<canvas.width;x+=6){
+  for(let y=0;y<canvas.height;y+=4){
+    for(let x=0;x<canvas.width;x+=4){
       const i=(y*canvas.width+x)*4;
-      if(data[i+3]>150){
+      if(data[i+3]>120){
         particles.push({
           x:Math.random()*canvas.width,
           y:Math.random()*canvas.height,
@@ -164,84 +106,92 @@ function createParticles(text){
   }
 }
 
-function animateParticles(){
+function animate(){
   ctx.clearRect(0,0,canvas.width,canvas.height);
   particles.forEach(p=>{
-    p.x+=(p.tx-p.x)*.08;
-    p.y+=(p.ty-p.y)*.08;
-    p.a=Math.min(p.a+.03,1);
+    p.x+=(p.tx-p.x)*0.06;
+    p.y+=(p.ty-p.y)*0.06;
+    p.a=Math.min(p.a+.02,1);
     ctx.fillStyle=`rgba(0,150,255,${p.a})`;
-    ctx.fillRect(p.x,p.y,2,2);
+    ctx.fillRect(p.x,p.y,1.2,1.2);
   });
-  if(particles.length)requestAnimationFrame(animateParticles);
+  if(particles.length)requestAnimationFrame(animate);
 }
 
-/* ===== UI ===== */
-function showHeart(){
-  content.classList.remove("show");
-  content.innerHTML='<div id="heart">❤️</div>';
+function clearAll(){
+  particles=[];
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+  hidePhoto();
+}
+
+/* ===== PHOTO ===== */
+const photo=document.getElementById("photo");
+function showPhoto(){
+  photo.style.opacity=1;
+  photo.style.transform="translate(-50%,-50%) scale(1)";
+  photo.style.filter="blur(0)";
+}
+function hidePhoto(){
   photo.style.opacity=0;
-  photo.style.transform="scale(.6)";
+  photo.style.transform="translate(-50%,-50%) scale(.6)";
   photo.style.filter="blur(14px)";
 }
 
-function showSlide(text){
-  content.classList.remove("show");
-  content.innerText="";
-  heart.style.display="none";
-
-  createParticles(text);
-  animateParticles();
-
-  setTimeout(()=>{
-    content.innerText=text;
-    content.classList.add("show");
-  },900);
-}
-
-function showPhoto(){
-  photo.style.opacity=1;
-  photo.style.transform="scale(1)";
-  photo.style.filter="blur(0)";
-}
-
 /* ===== CAMERA ===== */
-async function setupCamera(){
-  const stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:"user"}});
-  video.srcObject=stream;
+const video=document.getElementById("video");
+async function cam(){
+  const s=await navigator.mediaDevices.getUserMedia({video:{facingMode:"user"}});
+  video.srcObject=s;
   return new Promise(r=>video.onloadedmetadata=r);
 }
 
 /* ===== HAND DETECTION ===== */
-let model;
-let lock="";
-
+let model,last="";
 function up(t,p){return t[1]<p[1];}
 
 async function detect(){
-  const hands=await model.estimateHands(video);
+  const h=await model.estimateHands(video);
 
-  if(!hands.length){
-    showHeart();
-    lock="";
+  if(!h.length){
+    clearAll();
+    last="";
     return requestAnimationFrame(detect);
   }
 
-  const lm=hands[0].landmarks;
-  const indexFinger=up(lm[8],lm[6]);
-  const middleFinger=up(lm[12],lm[10]);
+  const lm=h[0].landmarks;
+  const idx=up(lm[8],lm[6]);
+  const mid=up(lm[12],lm[10]);
+  const ring=up(lm[16],lm[14]);
+  const pink=up(lm[20],lm[18]);
 
-  if(indexFinger&&!middleFinger&&lock!=="next"){
-    index=(index+1)%slides.length;
-    showSlide(slides[index]);
-    lock="next";
+  // ☝️ Slide 1
+  if(idx&&!mid&&!ring&&!pink&&last!=="1"){
+    clearAll(); drawParticles(slides[0]); animate(); last="1";
   }
-  else if(indexFinger&&middleFinger&&lock!=="photo"){
-    showPhoto();
-    lock="photo";
+  // ✌️ Slide 2
+  else if(idx&&mid&&!ring&&!pink&&last!=="2"){
+    clearAll(); drawParticles(slides[1]); animate(); last="2";
   }
-  else if(!indexFinger&&!middleFinger){
-    lock="";
+  // 🤟 Slide 3
+  else if(idx&&!mid&&!ring&&pink&&last!=="3"){
+    clearAll(); drawParticles(slides[2]); animate(); last="3";
+  }
+  // ✋ Slide 4
+  else if(idx&&mid&&ring&&pink&&last!=="4"){
+    clearAll(); drawParticles(slides[3]); animate(); last="4";
+  }
+  // ✊ Slide 5
+  else if(!idx&&!mid&&!ring&&!pink&&last!=="5"){
+    clearAll(); drawParticles(slides[4]); animate(); last="5";
+  }
+
+  // ✌️✌️ DUA TANGAN → FOTO
+  if(h.length===2){
+    const a=h[0].landmarks,b=h[1].landmarks;
+    if(up(a[8],a[6])&&up(a[12],a[10])&&
+       up(b[8],b[6])&&up(b[12],b[10])){
+      showPhoto();
+    }
   }
 
   requestAnimationFrame(detect);
@@ -249,9 +199,8 @@ async function detect(){
 
 /* ===== START ===== */
 (async()=>{
-  await setupCamera();
+  await cam();
   model=await handpose.load();
-  showHeart();
   detect();
 })();
 </script>
