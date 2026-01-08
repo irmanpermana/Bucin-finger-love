@@ -49,7 +49,7 @@ addEventListener("resize",()=>{c.width=innerWidth;c.height=innerHeight;});
 
 let model,particles=[],currentSlide=-1;
 let lastGesture="",gestureFrames=0,lastSwitch=0;
-const HOLD=7, COOLDOWN=800;
+const HOLD=15, COOLDOWN=800; // HOLD tinggi untuk smoothing
 
 /* SLIDES */
 const slides=[
@@ -124,11 +124,22 @@ async function setupCamera(){
 const up=(t,p)=>t[1]<p[1];
 const distance=(a,b)=>Math.hypot(a[0]-b[0],a[1]-b[1]);
 
-/* DETECT GESTURE TOLERAN */
+/* BUFFER UNTUK SMOOTHING */
+const bufferLength=10;
+let bufferIdx=[], bufferMid=[], bufferRing=[], bufferPink=[];
+
+function smoothUp(jari, buffer){
+  buffer.push(jari?1:0);
+  if(buffer.length>bufferLength) buffer.shift();
+  const sum=buffer.reduce((a,b)=>a+b,0);
+  return sum >= Math.ceil(bufferLength/2); // mayoritas frame
+}
+
+/* DETECT GESTURE TOLERAN + SMOOTH */
 async function detect(){
   const h=await model.estimateHands(video);
   
-  // Jika tidak ada tangan, hilangkan semua
+  // Jika tidak ada tangan → hilangkan semua
   if(!h.length){ 
     particles=[]; hidePhoto(); currentSlide=-1;
     requestAnimationFrame(detect);
@@ -136,14 +147,20 @@ async function detect(){
   }
 
   const lm=h[0].landmarks;
-  const idx=up(lm[8],lm[6]),
-        mid=up(lm[12],lm[10]),
-        ring=up(lm[16],lm[14]),
-        pink=up(lm[20],lm[18]);
+  let idx=up(lm[8],lm[6]),
+      mid=up(lm[12],lm[10]),
+      ring=up(lm[16],lm[14]),
+      pink=up(lm[20],lm[18]);
+
+  // smoothing
+  idx = smoothUp(idx, bufferIdx);
+  mid = smoothUp(mid, bufferMid);
+  ring = smoothUp(ring, bufferRing);
+  pink = smoothUp(pink, bufferPink);
 
   let gesture="none";
 
-  // 👌 Foto: cek ibu jari + telunjuk dekat
+  // 👌 Foto: ibu jari + telunjuk dekat
   if(distance(lm[4],lm[8])<45){ gesture="photo"; showPhoto(); }
 
   // ☝️ Slide 1
@@ -152,26 +169,26 @@ async function detect(){
   // ✌️ Slide 2
   else if(idx && mid && (!ring || ring) && !pink) gesture="two";
 
-  // 🤟 Slide 3: index + pinky
+  // 🤟 Slide 3
   else if(idx && pink && (!mid || mid) && (!ring || ring)) gesture="three";
 
-  // ✋ Slide 4 stabil: cek minimal 3 dari 4 jari utama (index, middle, ring, pinky)
+  // ✋ Slide 4: cek minimal 3 dari 4 jari utama
   else{
     const fingersUp = [idx, mid, ring, pink];
-    const upCount = fingersUp.filter(v => v).length;
-    if(upCount >= 3) gesture="four";
+    const upCount = fingersUp.filter(v=>v).length;
+    if(upCount>=3) gesture="four";
   }
 
   // 👍 Slide 5: ibu jari dominan, index+middle menutup cukup
   const thumbDist = distance(lm[4], lm[2]);
   const fingersClosed = (lm[8][1] > lm[6][1] && lm[12][1] > lm[10][1]);
-  if(thumbDist > 30 && fingersClosed) gesture="five";
+  if(thumbDist>30 && fingersClosed) gesture="five";
 
-  // Frame counting
+  // Frame counting untuk HOLD tinggi
   if(gesture===lastGesture) gestureFrames++;
   else {gestureFrames=0; lastGesture=gesture;}
 
-  // Switch slide hanya jika gesture valid, selain itu layar kosong
+  // Switch slide hanya jika gesture valid
   if(gestureFrames>=HOLD && Date.now()-lastSwitch>COOLDOWN){
     const map={one:0,two:1,three:2,four:3,five:4,photo:-1};
     if(map[gesture]!==undefined && gesture!=="none"){
@@ -181,7 +198,7 @@ async function detect(){
     }
   }
 
-  // Jika gesture tidak valid / none → hilangkan semua
+  // Jika gesture none → hilangkan semua
   if(gesture==="none"){ particles=[]; hidePhoto(); currentSlide=-1; }
 
   requestAnimationFrame(detect);
