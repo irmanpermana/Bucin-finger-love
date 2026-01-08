@@ -134,8 +134,16 @@ const idx=up(lm[8],lm[6]),
       mid=up(lm[12],lm[10]),
       ring=up(lm[16],lm[14]),
       pink=up(lm[20],lm[18]);
-
+// 👌 Gesture OK untuk foto
+const okGesture =
+  Math.hypot(lm[4][0] - lm[8][0], lm[4][1] - lm[8][1]) < 35 &&
+  lm[12][1] > lm[10][1] &&
+  lm[16][1] > lm[14][1] &&
+  lm[20][1] > lm[18][1];
 let gesture="none";
+  if (okGesture) {
+  gesture = "photo";
+  }
 
 // ☝️ Slide 1
 if(idx && !mid && !ring && !pink){
@@ -184,12 +192,6 @@ else if (
     }
   }
 
-  let pinch=false;
-  for(const hand of h){if(isPinch(hand.landmarks)){pinch=true;break;}}
-  pinch?showPhoto():hidePhoto();
-
-  requestAnimationFrame(detect);
-}
 
 (async()=>{
   await setupCamera();
