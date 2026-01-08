@@ -9,23 +9,14 @@
 <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/handpose@0.0.7/dist/handpose.min.js"></script>
 
 <style>
-html,body{
-  margin:0;
-  padding:0;
-  background:#000;
-  overflow:hidden;
-}
+html,body{margin:0;padding:0;background:#000;overflow:hidden;}
 canvas{position:fixed;inset:0;}
 video{position:fixed;width:1px;height:1px;opacity:0;}
-
 #photo{
-  position:absolute;
-  top:50%;left:50%;
+  position:absolute;top:50%;left:50%;
   transform:translate(-50%,-50%) scale(.6);
-  max-width:70%;
-  border-radius:20px;
-  opacity:0;
-  filter:blur(14px);
+  max-width:70%;border-radius:20px;
+  opacity:0;filter:blur(14px);
   transition:1s ease;
   box-shadow:0 0 80px rgba(0,150,255,.6);
 }
@@ -49,9 +40,8 @@ addEventListener("resize",()=>{c.width=innerWidth;c.height=innerHeight;});
 
 let model,particles=[],currentSlide=-1;
 let lastGesture="",gestureFrames=0,lastSwitch=0;
-const HOLD=7, COOLDOWN=800;
+const HOLD=12, COOLDOWN=800;
 
-/* SLIDES */
 const slides=[
 "Hai Sayangku 🥰",
 "Aku Sayang Kamu 😘",
@@ -60,19 +50,15 @@ const slides=[
 "Terimakasih sayang sudah menerima aku dengan segala kekuranganku 🥰"
 ];
 
-/* PARTICLES TEXT */
 function drawParticles(text){
   particles=[];ctx.clearRect(0,0,c.width,c.height);
   const maxW=c.width*0.8,maxH=c.height*0.6;
   let size=72,lines=[];
   while(size>18){
-    ctx.font=`bold ${size}px system-ui`;
-    lines=[];let line="";
+    ctx.font=`bold ${size}px system-ui`;lines=[];let line="";
     for(const w of text.split(" ")){
       let test=line+w+" ";
-      if(ctx.measureText(test).width>maxW){
-        lines.push(line);line=w+" ";
-      }else line=test;
+      if(ctx.measureText(test).width>maxW){lines.push(line);line=w+" ";}else line=test;
     }
     lines.push(line);
     if(lines.length*size*1.3<=maxH)break;
@@ -82,10 +68,7 @@ function drawParticles(text){
   ctx.fillStyle="#0af";
   ctx.textAlign="center";
   ctx.textBaseline="middle";
-  lines.forEach((l,i)=>{
-    ctx.fillText(l.trim(),c.width/2,
-      c.height/2+i*size*1.3-(lines.length-1)*size*0.65);
-  });
+  lines.forEach((l,i)=>ctx.fillText(l.trim(),c.width/2,c.height/2+i*size*1.3-(lines.length-1)*size*0.65));
   const img=ctx.getImageData(0,0,c.width,c.height);
   ctx.clearRect(0,0,c.width,c.height);
   for(let y=0;y<img.height;y+=4){
@@ -102,33 +85,27 @@ function animate(){
   for(const p of particles){
     p.x+=(p.tx-p.x)*0.08;
     p.y+=(p.ty-p.y)*0.08;
-    ctx.fillStyle="#0af";
-    ctx.fillRect(p.x,p.y,1.5,1.5);
+    ctx.fillStyle="#0af";ctx.fillRect(p.x,p.y,1.5,1.5);
   }
   requestAnimationFrame(animate);
 }
 animate();
 
-/* FOTO */
 const showPhoto=()=>{photo.style.opacity=1;photo.style.transform="translate(-50%,-50%) scale(1)";photo.style.filter="blur(0)";}
 const hidePhoto=()=>{photo.style.opacity=0;photo.style.transform="translate(-50%,-50%) scale(.6)";photo.style.filter="blur(14px)";}
 
-/* CAMERA */
 async function setupCamera(){
   const s=await navigator.mediaDevices.getUserMedia({video:{facingMode:"user"}});
   video.srcObject=s;
   return new Promise(r=>video.onloadedmetadata=r);
 }
 
-/* UTIL */
 const up=(t,p)=>t[1]<p[1];
 const distance=(a,b)=>Math.hypot(a[0]-b[0],a[1]-b[1]);
 
-/* DETECT GESTURE TOLERAN */
 async function detect(){
   const h=await model.estimateHands(video);
   if(!h.length){requestAnimationFrame(detect);return;}
-
   const lm=h[0].landmarks;
   const idx=up(lm[8],lm[6]),
         mid=up(lm[12],lm[10]),
@@ -137,30 +114,19 @@ async function detect(){
 
   let gesture="none";
 
-  // 👌 Foto: hanya cek ibu jari + telunjuk dekat (toleran jari lain)
-  if(distance(lm[4],lm[8])<45) { gesture="photo"; showPhoto(); }
+  // 👌 Foto hanya jika gesture photo
+  if(distance(lm[4],lm[8])<45){gesture="photo"; showPhoto();}
   else hidePhoto();
 
-  // ☝️ Slide 1
-  if(idx && !mid && !ring && !pink) gesture="one";
+  // Slide gestures
+  if(gesture!=="photo"){ // pastikan foto tidak overwrite
+    if(idx && !mid && !ring && !pink) gesture="one";
+    else if(idx && mid && (!ring||ring) && !pink) gesture="two";
+    else if(idx && pink && (!mid||mid) && (!ring||ring)) gesture="three";
+    else if([idx,mid,ring,pink].filter(v=>v).length>=3) gesture="four";
+    else if(distance(lm[4],lm[2])>30 && (lm[8][1]>lm[6][1] && lm[12][1]>lm[10][1])) gesture="five";
+  }
 
-  // ✌️ Slide 2
-  else if(idx && mid && (!ring || ring) && !pink) gesture="two";
-
-  // 🤟 Slide 3: index + pinky
-  else if(idx && pink && (!mid || mid) && (!ring || ring)) gesture="three";
-
-  // ✋ Slide 4 stabil: cek 4 jari (index+middle+ring+pinky), cukup 3 naik dari 4
-const fingersUp = [idx, mid, ring, pink];
-const upCount = fingersUp.filter(v => v).length;
-if(upCount >= 3) gesture = "four";
-
-  // 👍 Slide 5: ibu jari dominan, jari lain sebagian menutup
-  const thumbDist = distance(lm[4], lm[2]);
-  const fingersClosed = (lm[8][1] > lm[6][1] && lm[12][1] > lm[10][1]);
-  if(thumbDist > 30 && fingersClosed) gesture="five";
-
-  // Frame counting
   if(gesture===lastGesture) gestureFrames++;
   else {gestureFrames=0; lastGesture=gesture;}
 
@@ -176,7 +142,6 @@ if(upCount >= 3) gesture = "four";
   requestAnimationFrame(detect);
 }
 
-/* INIT */
 (async()=>{
   await setupCamera();
   model=await handpose.load();
