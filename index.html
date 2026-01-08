@@ -213,19 +213,20 @@ async function detect(){
   }
 
   /* ✌️✌️ DUA TANGAN VICTORY → FOTO */
-  let victoryCount = 0;
+  let pinchDetected = false;
 
 for(const hand of h){
-  const lm = hand.landmarks;
-
-  const index = up(lm[8], lm[6]);
-  const middle = up(lm[12], lm[10]);
-  const ring = up(lm[16], lm[14]);
-
-  // Victory = telunjuk + tengah naik
-  if(index && middle && !ring){
-    victoryCount++;
+  if(isPinch(hand.landmarks)){
+    pinchDetected = true;
+    break;
   }
+}
+
+if(pinchDetected){
+  showPhoto();
+}else{
+  hidePhoto();
+}
 }
 
 if(victoryCount >= 2){
