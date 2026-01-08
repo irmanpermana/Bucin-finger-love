@@ -33,13 +33,11 @@ video{position:fixed;width:1px;height:1px;opacity:0;}
 <audio id="bgm" src="musik/heart-of-the-sea.mp3" loop autoplay></audio>
 
 <script>
-/* BASIC */
 const canvas=c=document.getElementById("c");
 const ctx=c.getContext("2d");
 const video=document.getElementById("video");
 const photo=document.getElementById("photo");
 const bgm = document.getElementById("bgm");
-
 c.width=innerWidth;c.height=innerHeight;
 addEventListener("resize",()=>{c.width=innerWidth;c.height=innerHeight;});
 
@@ -55,42 +53,45 @@ const slides=[
 "Terimakasih sayang sudah menerima aku dengan segala kekuranganku 🥰"
 ];
 
+// FUNSI DRAW PARTICLES OPTIMAL
 function drawParticles(text){
-  particles=[];ctx.clearRect(0,0,c.width,c.height);
+  particles=[]; ctx.clearRect(0,0,c.width,c.height);
   const maxW=c.width*0.8,maxH=c.height*0.6;
   let size=72,lines=[];
   while(size>18){
-    ctx.font=`bold ${size}px system-ui`;lines=[];let line="";
+    ctx.font=`bold ${size}px system-ui`; lines=[]; let line="";
     for(const w of text.split(" ")){
       let test=line+w+" ";
-      if(ctx.measureText(test).width>maxW){lines.push(line);line=w+" ";}else line=test;
+      if(ctx.measureText(test).width>maxW){lines.push(line); line=w+" ";}else line=test;
     }
     lines.push(line);
-    if(lines.length*size*1.3<=maxH)break;
+    if(lines.length*size*1.3<=maxH) break;
     size-=2;
   }
   ctx.font=`bold ${size}px system-ui`;
-  ctx.fillStyle="#0af";
-  ctx.textAlign="center";
-  ctx.textBaseline="middle";
+  ctx.fillStyle="#0af"; ctx.textAlign="center"; ctx.textBaseline="middle";
   lines.forEach((l,i)=>ctx.fillText(l.trim(),c.width/2,c.height/2+i*size*1.3-(lines.length-1)*size*0.65));
+  
   const img=ctx.getImageData(0,0,c.width,c.height);
   ctx.clearRect(0,0,c.width,c.height);
-  for(let y=0;y<img.height;y+=4){
-    for(let x=0;x<img.width;x+=4){
+  
+  // Jarak partikel diperlebar untuk ringan
+  for(let y=0;y<img.height;y+=6){
+    for(let x=0;x<img.width;x+=6){
       if(img.data[(y*img.width+x)*4+3]>0){
-        particles.push({x:Math.random()*c.width,y:Math.random()*c.height,tx:x,ty:y});
+        particles.push({x:Math.random()*c.width, y:Math.random()*c.height, tx:x, ty:y});
       }
     }
   }
 }
 
+// ANIMASI PARTIKEL
 function animate(){
   ctx.clearRect(0,0,c.width,c.height);
   for(const p of particles){
-    p.x+=(p.tx-p.x)*0.08;
-    p.y+=(p.ty-p.y)*0.08;
-    ctx.fillStyle="#0af";ctx.fillRect(p.x,p.y,1.5,1.5);
+    p.x += (p.tx - p.x)*0.08;
+    p.y += (p.ty - p.y)*0.08;
+    ctx.fillStyle="#0af"; ctx.fillRect(p.x,p.y,1.5,1.5);
   }
   requestAnimationFrame(animate);
 }
@@ -112,28 +113,20 @@ async function detect(){
   const h=await model.estimateHands(video);
   if(!h.length){requestAnimationFrame(detect);return;}
   const lm=h[0].landmarks;
-  const idx=up(lm[8],lm[6]),
-        mid=up(lm[12],lm[10]),
-        ring=up(lm[16],lm[14]),
-        pink=up(lm[20],lm[18]);
+  const idx=up(lm[8],lm[6]), mid=up(lm[12],lm[10]), ring=up(lm[16],lm[14]), pink=up(lm[20],lm[18]);
 
   let gesture="none";
 
-  // 👌 Foto: hanya muncul saat gesture photo
+  // 👌 Foto hanya saat photo
   if(distance(lm[4],lm[8])<45){gesture="photo"; showPhoto();}
   else hidePhoto();
 
-  // Slide gestures hanya jika bukan photo
   if(gesture!=="photo"){
     if(idx && !mid && !ring && !pink) gesture="one";
     else if(idx && mid && !ring && !pink) gesture="two";
     else if(idx && pink && !mid && !ring) gesture="three";
-
-    // ✋ Slide 4: minimal 3 dari 4 jari utama (index+middle+ring+pinky)
-    else if([idx, mid, ring, pink].filter(v=>v).length>=3) gesture="four";
-
-    // 👍 Slide 5: ibu jari dominan, jari lain sebagian menutup
-    else if(distance(lm[4], lm[2])>30 && (lm[8][1]>lm[6][1] && lm[12][1]>lm[10][1])) gesture="five";
+    else if([idx,mid,ring,pink].filter(v=>v).length>=3) gesture="four"; // Slide 4
+    else if(distance(lm[4],lm[2])>30 && (lm[8][1]>lm[6][1] && lm[12][1]>lm[10][1])) gesture="five";
   }
 
   if(gesture===lastGesture) gestureFrames++;
@@ -155,8 +148,6 @@ async function detect(){
   await setupCamera();
   model=await handpose.load();
   detect();
-
-  // Musik latar otomatis
   bgm.play().catch(()=>{document.body.addEventListener("click",()=>bgm.play());});
 })();
 </script>
