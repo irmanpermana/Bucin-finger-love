@@ -13,10 +13,13 @@ html,body{margin:0;padding:0;background:#000;overflow:hidden;}
 canvas{position:fixed;inset:0;}
 video{position:fixed;width:1px;height:1px;opacity:0;}
 #photo{
-  position:absolute;top:50%;left:50%;
+  position:absolute;
+  top:50%;left:50%;
   transform:translate(-50%,-50%) scale(.6);
-  max-width:70%;border-radius:20px;
-  opacity:0;filter:blur(14px);
+  max-width:70%;
+  border-radius:20px;
+  opacity:0;
+  filter:blur(14px);
   transition:.5s ease;
   box-shadow:0 0 80px rgba(0,150,255,.6);
 }
@@ -38,22 +41,29 @@ const video = document.getElementById("video");
 const photo = document.getElementById("photo");
 const bgm = document.getElementById("bgm");
 
-c.width = innerWidth; c.height = innerHeight;
+c.width = innerWidth;
+c.height = innerHeight;
 addEventListener("resize",()=>{c.width=innerWidth;c.height=innerHeight;});
 
-let model, particles=[];
-let lastGesture="", gestureFrames=0, lastSwitch=0;
-let mode="idle"; // idle | slide | photo
+let model;
+let particles = [];
+let currentSlide = -1;
+let mode = "idle";
 
-const HOLD=8, COOLDOWN=600;
+let lastGesture = "";
+let gestureFrames = 0;
+let lastSwitch = 0;
+
+const HOLD = 8;
+const COOLDOWN = 600;
 
 /* ===== SLIDES ===== */
-const slides=[
-"Hai Sayangku 🥰",
-"Aku Sayang Kamu 😘",
-"Kamu adalah Rumah bagiku 🏡",
-"Aku berharap kita bisa terus bersama sampai kapanpun 🫶🏻🤗",
-"Terimakasih sayang sudah menerima aku dengan segala kekuranganku 🥰"
+const slides = [
+  "Hai Sayangku 🥰",
+  "Aku Sayang Kamu 😘",
+  "Kamu adalah Rumah bagiku 🏡",
+  "Aku berharap kita bisa terus bersama sampai kapanpun 🫶🏻🤗",
+  "Terimakasih sayang sudah menerima aku dengan segala kekuranganku 🥰"
 ];
 
 /* ===== PARTICLES ===== */
@@ -82,11 +92,14 @@ function drawParticles(text){
   ctx.textBaseline="middle";
 
   lines.forEach((l,i)=>{
-    ctx.fillText(l.trim(),c.width/2,
-      c.height/2+i*size*1.3-(lines.length-1)*size*0.65);
+    ctx.fillText(
+      l.trim(),
+      c.width/2,
+      c.height/2 + i*size*1.3 - (lines.length-1)*size*0.65
+    );
   });
 
-  const img=ctx.getImageData(0,0,c.width,c.height);
+  const img = ctx.getImageData(0,0,c.width,c.height);
   ctx.clearRect(0,0,c.width,c.height);
 
   for(let y=0;y<img.height;y+=6){
@@ -95,7 +108,8 @@ function drawParticles(text){
         particles.push({
           x:Math.random()*c.width,
           y:Math.random()*c.height,
-          tx:x, ty:y
+          tx:x,
+          ty:y
         });
       }
     }
@@ -105,8 +119,8 @@ function drawParticles(text){
 function animate(){
   ctx.clearRect(0,0,c.width,c.height);
   for(const p of particles){
-    p.x+=(p.tx-p.x)*0.08;
-    p.y+=(p.ty-p.y)*0.08;
+    p.x += (p.tx - p.x) * 0.08;
+    p.y += (p.ty - p.y) * 0.08;
     ctx.fillRect(p.x,p.y,1.5,1.5);
   }
   requestAnimationFrame(animate);
@@ -127,8 +141,8 @@ const hidePhoto=()=>{
 
 /* ===== CAMERA ===== */
 async function setupCamera(){
-  const s=await navigator.mediaDevices.getUserMedia({video:{facingMode:"user"}});
-  video.srcObject=s;
+  const s = await navigator.mediaDevices.getUserMedia({video:{facingMode:"user"}});
+  video.srcObject = s;
   return new Promise(r=>video.onloadedmetadata=r);
 }
 
@@ -138,15 +152,15 @@ const dist=(a,b)=>Math.hypot(a[0]-b[0],a[1]-b[1]);
 
 /* ===== DETECT ===== */
 async function detect(){
-  const h=await model.estimateHands(video);
-  let gesture="none";
+  const hands = await model.estimateHands(video);
+  let gesture = "none";
 
-  if(h.length){
-    const lm=h[0].landmarks;
-    const idx=up(lm[8],lm[6]),
-          mid=up(lm[12],lm[10]),
-          ring=up(lm[16],lm[14]),
-          pink=up(lm[20],lm[18]);
+  if(hands.length){
+    const lm = hands[0].landmarks;
+    const idx=up(lm[8],lm[6]);
+    const mid=up(lm[12],lm[10]);
+    const ring=up(lm[16],lm[14]);
+    const pink=up(lm[20],lm[18]);
 
     if(idx && !mid && !ring && !pink) gesture="one";
     else if(idx && mid && !ring && !pink) gesture="two";
@@ -163,24 +177,36 @@ async function detect(){
   lastGesture=gesture;
 
   if(gestureFrames>=HOLD && Date.now()-lastSwitch>COOLDOWN){
+
     if(gesture==="photo"){
       mode="photo";
+      currentSlide=-1;
       showPhoto();
       particles=[];
       ctx.clearRect(0,0,c.width,c.height);
     }
+
     else if(["one","two","three","four","five"].includes(gesture)){
+      const map={one:0,two:1,three:2,four:3,five:4};
+      const nextSlide = map[gesture];
+
       mode="slide";
       hidePhoto();
-      const map={one:0,two:1,three:2,four:3,five:4};
-      drawParticles(slides[map[gesture]]);
+
+      if(currentSlide!==nextSlide){
+        currentSlide=nextSlide;
+        drawParticles(slides[currentSlide]);
+      }
     }
+
     else{
       mode="idle";
+      currentSlide=-1;
       hidePhoto();
       particles=[];
       ctx.clearRect(0,0,c.width,c.height);
     }
+
     lastSwitch=Date.now();
   }
 
@@ -190,7 +216,7 @@ async function detect(){
 /* ===== INIT ===== */
 (async()=>{
   await setupCamera();
-  model=await handpose.load();
+  model = await handpose.load();
   detect();
   bgm.play().catch(()=>document.body.addEventListener("click",()=>bgm.play()));
 })();
