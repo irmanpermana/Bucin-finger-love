@@ -2,7 +2,7 @@
 <html lang="id">
 <head>
 <meta charset="UTF-8">
-<title>Bucin Gesture Final 💕</title>
+<title>Bucin Cinematic 💙</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
 <!-- TensorFlow -->
@@ -10,213 +10,248 @@
 <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/handpose@0.0.7/dist/handpose.min.js"></script>
 
 <style>
-body {
-  margin: 0;
-  height: 100vh;
-  background: linear-gradient(135deg, #ff4d6d, #ff8fab, #ffc2d1);
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  font-family: system-ui, sans-serif;
-  color: white;
-  text-align: center;
-  overflow: hidden;
+html,body{
+  margin:0;
+  padding:0;
+  width:100%;
+  height:100%;
+  background:black;
+  overflow:hidden;
+  font-family:system-ui;
 }
 
-#content {
-  font-size: 2.2em;
-  padding: 25px;
-  max-width: 90%;
-  opacity: 0;
-  transition: opacity 0.8s ease;
+/* ===== TEXT ===== */
+#content{
+  position:absolute;
+  inset:0;
+  display:flex;
+  justify-content:center;
+  align-items:center;
+  color:white;
+  font-size:2em;
+  text-align:center;
+
+  opacity:0;
+  transform:scale(.85);
+  filter:blur(14px);
+
+  transition:
+    opacity .8s ease,
+    transform 1s ease,
+    filter 1s ease;
 }
 
-.show {
-  opacity: 1;
+#content.show{
+  opacity:1;
+  transform:scale(1);
+  filter:blur(0);
+  animation:float 4s ease-in-out infinite;
 }
 
-#photo {
-  position: absolute;
-  max-width: 75%;
-  border-radius: 20px;
-  box-shadow: 0 0 30px rgba(255,255,255,0.6);
-  opacity: 0;
-  transition: opacity 0.8s ease;
+@keyframes float{
+  0%{transform:scale(1) translateY(0)}
+  50%{transform:scale(1) translateY(-6px)}
+  100%{transform:scale(1) translateY(0)}
 }
 
-video {
-  position: fixed;
-  top: -1000px;
-  left: -1000px;
-  width: 1px;
-  height: 1px;
-  opacity: 0;
+/* ===== HEART ===== */
+#heart{
+  font-size:4em;
+  animation:pulse 1.6s infinite;
+}
+
+@keyframes pulse{
+  0%{transform:scale(1);opacity:.7}
+  50%{transform:scale(1.2);opacity:1}
+  100%{transform:scale(1);opacity:.7}
+}
+
+/* ===== CANVAS ===== */
+canvas{
+  position:absolute;
+  inset:0;
+  pointer-events:none;
+}
+
+/* ===== PHOTO ===== */
+#photo{
+  position:absolute;
+  max-width:70%;
+  border-radius:22px;
+  opacity:0;
+  transform:scale(.6);
+  filter:blur(14px);
+  transition:1s ease;
+  box-shadow:0 0 80px rgba(0,150,255,.8);
+}
+
+/* ===== CAMERA (HIDDEN) ===== */
+video{
+  position:fixed;
+  width:1px;
+  height:1px;
+  opacity:0;
 }
 </style>
 </head>
 
 <body>
 
-<div id="content" class="show">❤️</div>
-<img id="photo" src="" alt="">
+<canvas id="particleCanvas"></canvas>
+
+<div id="content">
+  <div id="heart">❤️</div>
+</div>
+
+<!-- ganti foto di sini -->
+<img id="photo" src="foto/sayang.jpg">
 <video id="video" autoplay muted playsinline></video>
 
 <script>
-/* ================== ELEMENT ================== */
-const content = document.getElementById("content");
-const video = document.getElementById("video");
-const photo = document.getElementById("photo");
-
-/* ================== SLIDES ================== */
-const slides = [
+/* ===== SLIDES ===== */
+const slides=[
   "Hai Sayangku 🥰",
   "Aku Sayang Kamu 😘",
   "Kamu adalah Rumah bagiku 🏡",
   "Aku Berharap Kita Bisa Terus Bersama Sampai Kapanpun 🫶🏻🤗",
   "Terimakasih Sayang Udah Mau Nerima Aku Dengan Segala Kekuranganku.. 🥰"
 ];
+let index=-1;
 
-let slideIndex = -1;
-let model;
-let photoMode = false;
+/* ===== ELEMENT ===== */
+const content=document.getElementById("content");
+const heart=document.getElementById("heart");
+const photo=document.getElementById("photo");
+const video=document.getElementById("video");
 
-/* ================== STABILIZER ================== */
-let lastGesture = "";
-let stableCount = 0;
+/* ===== PARTICLE ===== */
+const canvas=document.getElementById("particleCanvas");
+const ctx=canvas.getContext("2d");
+let particles=[];
 
-/* ================== IDLE ================== */
-let lastActiveTime = Date.now();
-const IDLE_TIME = 2500;
-
-/* ================== UI ================== */
-function showSlide(text) {
-  content.classList.remove("show");
-  setTimeout(() => {
-    content.innerText = text;
-    content.classList.add("show");
-  }, 200);
+function resize(){
+  canvas.width=innerWidth;
+  canvas.height=innerHeight;
 }
+resize();
+addEventListener("resize",resize);
 
-function nextSlide() {
-  slideIndex++;
-  if (slideIndex >= slides.length) slideIndex = slides.length - 1;
-  showSlide(slides[slideIndex]);
-}
+function createParticles(text){
+  particles=[];
+  ctx.clearRect(0,0,canvas.width,canvas.height);
 
-function resetToHeart() {
-  slideIndex = -1;
-  photoMode = false;
-  photo.style.opacity = 0;
-  content.innerText = "❤️";
-  content.classList.add("show");
-}
+  ctx.fillStyle="white";
+  ctx.font="bold 42px system-ui";
+  ctx.textAlign="center";
+  ctx.fillText(text,canvas.width/2,canvas.height/2);
 
-/* ================== PHOTO ================== */
-function showPhoto() {
-  if (photoMode) return;
-  photoMode = true;
-  content.classList.remove("show");
-  photo.src = "IMG-20251210-WA0000.jpg"; // 👉 isi foto kamu nanti
-  photo.style.opacity = 1;
-}
+  const data=ctx.getImageData(0,0,canvas.width,canvas.height).data;
+  ctx.clearRect(0,0,canvas.width,canvas.height);
 
-function hidePhoto() {
-  photoMode = false;
-  photo.style.opacity = 0;
-  if (slideIndex >= 0) showSlide(slides[slideIndex]);
-}
-
-/* ================== GESTURE ================== */
-function fingerUp(tip, pip) {
-  return tip[1] < pip[1] - 10;
-}
-
-function commitGesture(name) {
-  lastActiveTime = Date.now();
-
-  if (name === lastGesture) stableCount++;
-  else {
-    lastGesture = name;
-    stableCount = 0;
-  }
-
-  if (stableCount === 6) handleGesture(name);
-}
-
-function handleGesture(gesture) {
-
-  if (photoMode && gesture === "pinch") {
-    hidePhoto();
-    return;
-  }
-
-  if (slideIndex === -1 && gesture === "index") nextSlide();
-  else if (slideIndex === 0 && gesture === "v") nextSlide();
-  else if (slideIndex === 1 && gesture === "rock") nextSlide();
-  else if (slideIndex === 2 && gesture === "pinch") nextSlide();
-  else if (slideIndex === 3 && gesture === "palm") nextSlide();
-}
-
-/* ================== CAMERA ================== */
-async function setupCamera() {
-  const stream = await navigator.mediaDevices.getUserMedia({
-    video: { facingMode: "user" }
-  });
-  video.srcObject = stream;
-  await video.play();
-}
-
-/* ================== DETECT ================== */
-async function detect() {
-  const hands = await model.estimateHands(video);
-
-  if (hands.length === 2) {
-    let victory = 0;
-
-    for (const h of hands) {
-      const lm = h.landmarks;
-      const index = fingerUp(lm[8], lm[6]);
-      const middle = fingerUp(lm[12], lm[10]);
-      const ring = fingerUp(lm[16], lm[14]);
-      const pinky = fingerUp(lm[20], lm[18]);
-
-      if (index && middle && !ring && !pinky) victory++;
+  for(let y=0;y<canvas.height;y+=6){
+    for(let x=0;x<canvas.width;x+=6){
+      const i=(y*canvas.width+x)*4;
+      if(data[i+3]>150){
+        particles.push({
+          x:Math.random()*canvas.width,
+          y:Math.random()*canvas.height,
+          tx:x,
+          ty:y,
+          a:0
+        });
+      }
     }
+  }
+}
 
-    if (victory === 2) showPhoto();
+function animateParticles(){
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+  particles.forEach(p=>{
+    p.x+=(p.tx-p.x)*.08;
+    p.y+=(p.ty-p.y)*.08;
+    p.a=Math.min(p.a+.03,1);
+    ctx.fillStyle=`rgba(0,150,255,${p.a})`;
+    ctx.fillRect(p.x,p.y,2,2);
+  });
+  if(particles.length)requestAnimationFrame(animateParticles);
+}
+
+/* ===== UI ===== */
+function showHeart(){
+  content.classList.remove("show");
+  content.innerHTML='<div id="heart">❤️</div>';
+  photo.style.opacity=0;
+  photo.style.transform="scale(.6)";
+  photo.style.filter="blur(14px)";
+}
+
+function showSlide(text){
+  content.classList.remove("show");
+  content.innerText="";
+  heart.style.display="none";
+
+  createParticles(text);
+  animateParticles();
+
+  setTimeout(()=>{
+    content.innerText=text;
+    content.classList.add("show");
+  },900);
+}
+
+function showPhoto(){
+  photo.style.opacity=1;
+  photo.style.transform="scale(1)";
+  photo.style.filter="blur(0)";
+}
+
+/* ===== CAMERA ===== */
+async function setupCamera(){
+  const stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:"user"}});
+  video.srcObject=stream;
+  return new Promise(r=>video.onloadedmetadata=r);
+}
+
+/* ===== HAND DETECTION ===== */
+let model;
+let lock="";
+
+function up(t,p){return t[1]<p[1];}
+
+async function detect(){
+  const hands=await model.estimateHands(video);
+
+  if(!hands.length){
+    showHeart();
+    lock="";
+    return requestAnimationFrame(detect);
   }
 
-  if (hands.length === 1) {
-    const lm = hands[0].landmarks;
+  const lm=hands[0].landmarks;
+  const indexFinger=up(lm[8],lm[6]);
+  const middleFinger=up(lm[12],lm[10]);
 
-    const index = fingerUp(lm[8], lm[6]);
-    const middle = fingerUp(lm[12], lm[10]);
-    const ring = fingerUp(lm[16], lm[14]);
-    const pinky = fingerUp(lm[20], lm[18]);
-
-    const pinch = Math.hypot(
-      lm[4][0] - lm[8][0],
-      lm[4][1] - lm[8][1]
-    ) < 35;
-
-    if (pinch) commitGesture("pinch");
-    else if (index && middle && !ring && !pinky) commitGesture("v");
-    else if (index && pinky && !middle && !ring) commitGesture("rock");
-    else if (index && !middle && !ring && !pinky) commitGesture("index");
-    else if (index && middle && ring && pinky) commitGesture("palm");
+  if(indexFinger&&!middleFinger&&lock!=="next"){
+    index=(index+1)%slides.length;
+    showSlide(slides[index]);
+    lock="next";
   }
-
-  if (Date.now() - lastActiveTime > IDLE_TIME) {
-    if (slideIndex !== -1 || photoMode) resetToHeart();
+  else if(indexFinger&&middleFinger&&lock!=="photo"){
+    showPhoto();
+    lock="photo";
+  }
+  else if(!indexFinger&&!middleFinger){
+    lock="";
   }
 
   requestAnimationFrame(detect);
 }
 
-/* ================== START ================== */
-(async () => {
+/* ===== START ===== */
+(async()=>{
   await setupCamera();
-  model = await handpose.load();
+  model=await handpose.load();
+  showHeart();
   detect();
 })();
 </script>
