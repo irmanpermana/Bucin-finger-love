@@ -145,9 +145,13 @@ if(idx && !mid && !ring && !pink){
 else if(idx && mid && !ring && !pink){
   gesture="two";
 }
-// 🤟 Slide 3 (index + pinky)
-else if(idx && !mid && !ring && pink){
-  gesture="three";
+// 🤟 Slide 3 (index + pinky, versi toleran)
+else if (
+  idx && pink &&
+  lm[12][1] > lm[10][1] && // jari tengah turun
+  lm[16][1] > lm[14][1]   // jari manis turun
+) {
+  gesture = "three";
 }
 // ✋ Slide 4 (semua jari)
 else if(idx && mid && ring && pink){
