@@ -38,12 +38,17 @@ video{position:fixed;width:1px;height:1px;opacity:0;}
 <img id="photo" src="foto/IMG-20251103-WA0038.jpg">
 <video id="video" autoplay muted playsinline></video>
 
+<!-- MUSIK LATAR -->
+<audio id="bgm" src="musik/Virgoun_Last_Child_-_Surat_Cinta_Untuk_Starla_(mp3.pm).mp3" loop></audio>
+
 <script>
 /* BASIC */
 const canvas=c=document.getElementById("c");
 const ctx=c.getContext("2d");
 const video=document.getElementById("video");
 const photo=document.getElementById("photo");
+const bgm = document.getElementById("bgm");
+
 c.width=innerWidth;c.height=innerHeight;
 addEventListener("resize",()=>{c.width=innerWidth;c.height=innerHeight;});
 
@@ -183,6 +188,12 @@ async function detect(){
   await setupCamera();
   model=await handpose.load();
   detect();
+
+  // MAINKAN MUSIK LATAR
+  bgm.play().catch(()=>{
+    console.log("Autoplay musik diblokir, tap layar untuk mulai");
+  });
+  document.body.addEventListener("click", ()=> bgm.play());
 })();
 </script>
 </body>
