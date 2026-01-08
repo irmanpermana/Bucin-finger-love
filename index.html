@@ -213,17 +213,26 @@ async function detect(){
   }
 
   /* ✌️✌️ DUA TANGAN VICTORY → FOTO */
-  if(h.length===2){
-    const a=h[0].landmarks;
-    const b=h[1].landmarks;
+  let victoryCount = 0;
 
-    const victoryA=up(a[8],a[6])&&up(a[12],a[10])&&!up(a[16],a[14]);
-    const victoryB=up(b[8],b[6])&&up(b[12],b[10])&&!up(b[16],b[14]);
+for(const hand of h){
+  const lm = hand.landmarks;
 
-    if(victoryA && victoryB){
-      showPhoto();
-    }
+  const index = up(lm[8], lm[6]);
+  const middle = up(lm[12], lm[10]);
+  const ring = up(lm[16], lm[14]);
+
+  // Victory = telunjuk + tengah naik
+  if(index && middle && !ring){
+    victoryCount++;
   }
+}
+
+if(victoryCount >= 2){
+  showPhoto();
+}else{
+  hidePhoto();
+}
 
   requestAnimationFrame(detect);
 }
