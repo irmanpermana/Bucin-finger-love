@@ -39,7 +39,7 @@ video{position:fixed;width:1px;height:1px;opacity:0;}
 <video id="video" autoplay muted playsinline></video>
 
 <!-- MUSIK LATAR -->
-<audio id="bgm" src="musik/Virgoun_Last_Child_-_Surat_Cinta_Untuk_Starla_(mp3.pm).mp3" loop></audio>
+<audio id="bgm" src="musik/heart-of-the-sea.mp3" loop></audio>
 
 <script>
 /* BASIC */
@@ -54,7 +54,7 @@ addEventListener("resize",()=>{c.width=innerWidth;c.height=innerHeight;});
 
 let model,particles=[],currentSlide=-1;
 let lastGesture="",gestureFrames=0,lastSwitch=0;
-const HOLD=12, COOLDOWN=800; // HOLD lebih tinggi untuk stabil
+const HOLD=12, COOLDOWN=800;
 
 /* SLIDES */
 const slides=[
@@ -129,7 +129,7 @@ async function setupCamera(){
 const up=(t,p)=>t[1]<p[1];
 const distance=(a,b)=>Math.hypot(a[0]-b[0],a[1]-b[1]);
 
-/* DETECT GESTURE TOLERAN */
+/* DETECT GESTURE */
 async function detect(){
   const h=await model.estimateHands(video);
   if(!h.length){ requestAnimationFrame(detect); return; }
@@ -142,9 +142,13 @@ async function detect(){
 
   let gesture="none";
 
-  // 👌 Foto
-  if(distance(lm[4],lm[8])<45){ gesture="photo"; showPhoto(); }
-  else hidePhoto();
+  // 👌 Gesture untuk foto
+  if(distance(lm[4],lm[8])<45){
+    gesture="photo";
+    showPhoto();
+  } else {
+    hidePhoto();
+  }
 
   // ☝️ Slide 1
   if(idx && !mid && !ring && !pink) gesture="one";
@@ -155,7 +159,7 @@ async function detect(){
   // 🤟 Slide 3
   else if(idx && pink && (!mid || mid) && (!ring || ring)) gesture="three";
 
-  // ✋ Slide 4 stabil: minimal 3 dari 4 jari utama
+  // ✋ Slide 4 (minimal 3 dari 4 jari utama)
   else{
     const fingersUp=[idx, mid, ring, pink];
     const upCount = fingersUp.filter(v=>v).length;
@@ -174,6 +178,7 @@ async function detect(){
   if(gestureFrames>=HOLD && Date.now()-lastSwitch>COOLDOWN){
     const map={one:0,two:1,three:2,four:3,five:4,photo:-1};
     if(map[gesture]!==undefined){
+      // hanya gambar partikel untuk slide, bukan foto
       if(gesture!=="photo") drawParticles(slides[map[gesture]]);
       currentSlide=gesture;
       lastSwitch=Date.now();
