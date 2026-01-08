@@ -130,13 +130,36 @@ async function detect(){
   if(!h.length){particles=[];hidePhoto();requestAnimationFrame(detect);return;}
 
   const lm=h[0].landmarks;
-  const idx=up(lm[8],lm[6]),mid=up(lm[12],lm[10]),ring=up(lm[16],lm[14]),pink=up(lm[20],lm[18]);
-  let gesture="none";
-  if(idx&&!mid&&!ring&&!pink)gesture="one";
-  else if(idx&&mid&&!ring&&!pink)gesture="two";
-  else if(idx&&mid&&ring&&!pink)gesture="three";
-  else if(idx&&mid&&ring&&pink)gesture="four";
-  else if(!idx&&!mid&&!ring&&!pink)gesture="fist";
+const idx=up(lm[8],lm[6]),
+      mid=up(lm[12],lm[10]),
+      ring=up(lm[16],lm[14]),
+      pink=up(lm[20],lm[18]);
+
+let gesture="none";
+
+// ☝️ Slide 1
+if(idx && !mid && !ring && !pink){
+  gesture="one";
+}
+// ✌️ Slide 2
+else if(idx && mid && !ring && !pink){
+  gesture="two";
+}
+// 🤟 Slide 3 (index + pinky)
+else if(idx && !mid && !ring && pink){
+  gesture="three";
+}
+// ✋ Slide 4 (semua jari)
+else if(idx && mid && ring && pink){
+  gesture="four";
+}
+// 👍 Slide 5 (jempol saja)
+else if(
+  !idx && !mid && !ring && !pink &&
+  lm[4][1] < lm[3][1]
+){
+  gesture="five";
+  }
 
   if(gesture===lastGesture)gestureFrames++;else{gestureFrames=0;lastGesture=gesture;}
 
