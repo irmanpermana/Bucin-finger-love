@@ -49,7 +49,7 @@ addEventListener("resize",()=>{c.width=innerWidth;c.height=innerHeight;});
 
 let model,particles=[],currentSlide=-1;
 let lastGesture="",gestureFrames=0,lastSwitch=0;
-const HOLD=7, COOLDOWN=800; // lebih cepat dan responsif
+const HOLD=7, COOLDOWN=800;
 
 /* SLIDES */
 const slides=[
@@ -137,31 +137,28 @@ async function detect(){
 
   let gesture="none";
 
-  // 👌 Gesture OK untuk foto
-  const okGesture =
-    distance(lm[4],lm[8])<45 &&
-    mid===false && ring===false && pink===false;
-  if(okGesture){gesture="photo"; showPhoto();}
+  // 👌 Foto: hanya cek ibu jari + telunjuk dekat (toleran jari lain)
+  if(distance(lm[4],lm[8])<45) { gesture="photo"; showPhoto(); }
   else hidePhoto();
 
-  // ☝️ Slide 1: hanya index naik
+  // ☝️ Slide 1
   if(idx && !mid && !ring && !pink) gesture="one";
 
-  // ✌️ Slide 2: index + middle
+  // ✌️ Slide 2
   else if(idx && mid && (!ring || ring) && !pink) gesture="two";
 
-  // 🤟 Slide 3: index + pinky (lebih toleran)
+  // 🤟 Slide 3: index + pinky
   else if(idx && pink && (!mid || mid) && (!ring || ring)) gesture="three";
 
-  // ✋ Slide 4: semua jari (toleran ibu jari)
+  // ✋ Slide 4: toleran ibu jari
   else if(idx && mid && ring && pink) gesture="four";
 
   // 👍 Slide 5: ibu jari dominan, jari lain sebagian menutup
-const thumbDist = distance(lm[4], lm[2]);
-const fingersClosed = (lm[8][1] > lm[6][1] && lm[12][1] > lm[10][1]); // index & middle cukup
+  const thumbDist = distance(lm[4], lm[2]);
+  const fingersClosed = (lm[8][1] > lm[6][1] && lm[12][1] > lm[10][1]);
+  if(thumbDist > 30 && fingersClosed) gesture="five";
 
-if (thumbDist > 30 && fingersClosed) gesture="five";
-
+  // Frame counting
   if(gesture===lastGesture) gestureFrames++;
   else {gestureFrames=0; lastGesture=gesture;}
 
