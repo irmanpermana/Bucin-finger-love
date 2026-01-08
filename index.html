@@ -17,7 +17,7 @@ video{position:fixed;width:1px;height:1px;opacity:0;}
   transform:translate(-50%,-50%) scale(.6);
   max-width:70%;border-radius:20px;
   opacity:0;filter:blur(14px);
-  transition:0.5s ease;
+  transition:.5s ease;
   box-shadow:0 0 80px rgba(0,150,255,.6);
 }
 </style>
@@ -28,56 +28,75 @@ video{position:fixed;width:1px;height:1px;opacity:0;}
 <canvas id="c"></canvas>
 <img id="photo" src="foto/IMG-20251103-WA0038.jpg">
 <video id="video" autoplay muted playsinline></video>
-
 <audio id="bgm" src="musik/heart-of-the-sea.mp3" loop autoplay></audio>
 
 <script>
-const canvas=c=document.getElementById("c");
-const ctx=c.getContext("2d");
-const video=document.getElementById("video");
-const photo=document.getElementById("photo");
-const bgm=document.getElementById("bgm");
+/* ===== BASIC ===== */
+const c = document.getElementById("c");
+const ctx = c.getContext("2d");
+const video = document.getElementById("video");
+const photo = document.getElementById("photo");
+const bgm = document.getElementById("bgm");
 
-c.width=innerWidth; c.height=innerHeight;
+c.width = innerWidth; c.height = innerHeight;
 addEventListener("resize",()=>{c.width=innerWidth;c.height=innerHeight;});
 
-let model, particles=[], currentSlide=-1;
+let model, particles=[];
 let lastGesture="", gestureFrames=0, lastSwitch=0;
+let mode="idle"; // idle | slide | photo
+
 const HOLD=8, COOLDOWN=600;
 
+/* ===== SLIDES ===== */
 const slides=[
-  "Hai Sayangku 🥰",
-  "Aku Sayang Kamu 😘",
-  "Kamu adalah Rumah bagiku 🏡",
-  "Aku berharap kita bisa terus bersama sampai kapanpun 🫶🏻🤗",
-  "Terimakasih sayang sudah menerima aku dengan segala kekuranganku 🥰"
+"Hai Sayangku 🥰",
+"Aku Sayang Kamu 😘",
+"Kamu adalah Rumah bagiku 🏡",
+"Aku berharap kita bisa terus bersama sampai kapanpun 🫶🏻🤗",
+"Terimakasih sayang sudah menerima aku dengan segala kekuranganku 🥰"
 ];
 
-// Partikel ringan
+/* ===== PARTICLES ===== */
 function drawParticles(text){
-  particles=[]; ctx.clearRect(0,0,c.width,c.height);
-  const maxW=c.width*0.8, maxH=c.height*0.6;
+  particles=[];
+  ctx.clearRect(0,0,c.width,c.height);
+
   let size=60, lines=[];
   while(size>18){
-    ctx.font=`bold ${size}px system-ui`; lines=[]; let line="";
+    ctx.font=`bold ${size}px system-ui`;
+    lines=[]; let line="";
     for(const w of text.split(" ")){
-      let test=line+w+" ";
-      if(ctx.measureText(test).width>maxW){lines.push(line); line=w+" ";}else line=test;
+      const t=line+w+" ";
+      if(ctx.measureText(t).width>c.width*0.8){
+        lines.push(line); line=w+" ";
+      } else line=t;
     }
     lines.push(line);
-    if(lines.length*size*1.3<=maxH) break;
+    if(lines.length*size*1.3<c.height*0.6) break;
     size-=2;
   }
+
   ctx.font=`bold ${size}px system-ui`;
-  ctx.fillStyle="#0af"; ctx.textAlign="center"; ctx.textBaseline="middle";
-  lines.forEach((l,i)=>ctx.fillText(l.trim(),c.width/2,c.height/2+i*size*1.3-(lines.length-1)*size*0.65));
+  ctx.fillStyle="#0af";
+  ctx.textAlign="center";
+  ctx.textBaseline="middle";
+
+  lines.forEach((l,i)=>{
+    ctx.fillText(l.trim(),c.width/2,
+      c.height/2+i*size*1.3-(lines.length-1)*size*0.65);
+  });
 
   const img=ctx.getImageData(0,0,c.width,c.height);
   ctx.clearRect(0,0,c.width,c.height);
+
   for(let y=0;y<img.height;y+=6){
     for(let x=0;x<img.width;x+=6){
       if(img.data[(y*img.width+x)*4+3]>0){
-        particles.push({x:Math.random()*c.width, y:Math.random()*c.height, tx:x, ty:y});
+        particles.push({
+          x:Math.random()*c.width,
+          y:Math.random()*c.height,
+          tx:x, ty:y
+        });
       }
     }
   }
@@ -88,69 +107,79 @@ function animate(){
   for(const p of particles){
     p.x+=(p.tx-p.x)*0.08;
     p.y+=(p.ty-p.y)*0.08;
-    ctx.fillStyle="#0af"; ctx.fillRect(p.x,p.y,1.5,1.5);
+    ctx.fillRect(p.x,p.y,1.5,1.5);
   }
   requestAnimationFrame(animate);
 }
 animate();
 
-// Foto
-const showPhoto=()=>{photo.style.opacity=1; photo.style.transform="translate(-50%,-50%) scale(1)"; photo.style.filter="blur(0)";}
-const hidePhoto=()=>{photo.style.opacity=0; photo.style.transform="translate(-50%,-50%) scale(.6)"; photo.style.filter="blur(14px)";}
+/* ===== PHOTO ===== */
+const showPhoto=()=>{
+  photo.style.opacity=1;
+  photo.style.transform="translate(-50%,-50%) scale(1)";
+  photo.style.filter="blur(0)";
+};
+const hidePhoto=()=>{
+  photo.style.opacity=0;
+  photo.style.transform="translate(-50%,-50%) scale(.6)";
+  photo.style.filter="blur(14px)";
+};
 
-// Kamera
+/* ===== CAMERA ===== */
 async function setupCamera(){
   const s=await navigator.mediaDevices.getUserMedia({video:{facingMode:"user"}});
   video.srcObject=s;
   return new Promise(r=>video.onloadedmetadata=r);
 }
 
-// Utils
+/* ===== UTILS ===== */
 const up=(t,p)=>t[1]<p[1];
-const distance=(a,b)=>Math.hypot(a[0]-b[0],a[1]-b[1]);
+const dist=(a,b)=>Math.hypot(a[0]-b[0],a[1]-b[1]);
 
-// Detect
+/* ===== DETECT ===== */
 async function detect(){
   const h=await model.estimateHands(video);
   let gesture="none";
 
   if(h.length){
     const lm=h[0].landmarks;
-    const idx=up(lm[8],lm[6]), mid=up(lm[12],lm[10]), ring=up(lm[16],lm[14]), pink=up(lm[20],lm[18]);
+    const idx=up(lm[8],lm[6]),
+          mid=up(lm[12],lm[10]),
+          ring=up(lm[16],lm[14]),
+          pink=up(lm[20],lm[18]);
 
-    // Slide gestures (cek dulu, supaya photo tidak tertukar)
-    if(idx && !mid && !ring && !pink) gesture="one"; // ☝🏻
-    else if(idx && mid && !ring && !pink) gesture="two"; // ✌🏻
-    else if(idx && pink && !mid && !ring) gesture="three"; // 🤟
-    else if([idx,mid,ring,pink].filter(v=>v).length>=3) gesture="four"; // ✋🏻
-    else if(distance(lm[4],lm[2])>30 && lm[8][1]>lm[6][1] && lm[12][1]>lm[10][1]) gesture="five"; // 👍🏻
+    if(idx && !mid && !ring && !pink) gesture="one";
+    else if(idx && mid && !ring && !pink) gesture="two";
+    else if(idx && pink && !mid && !ring) gesture="three";
+    else if([idx,mid,ring,pink].filter(v=>v).length>=3) gesture="four";
+    else if(dist(lm[4],lm[2])>30 && lm[8][1]>lm[6][1]) gesture="five";
 
-    // Photo gesture 👌 (cek ekstra: jari tengah+manis+pinky turun supaya tidak tertukar ☝🏻)
-    const otherFingersDown = !mid && !ring && !pink;
-    if(distance(lm[4],lm[8])<45 && otherFingersDown){
-      gesture="photo";
-    }
+    const photoOnly = !mid && !ring && !pink;
+    if(dist(lm[4],lm[8])<35 && photoOnly) gesture="photo";
   }
 
-  // Frame counting
   if(gesture===lastGesture) gestureFrames++;
   else gestureFrames=0;
   lastGesture=gesture;
 
   if(gestureFrames>=HOLD && Date.now()-lastSwitch>COOLDOWN){
     if(gesture==="photo"){
+      mode="photo";
       showPhoto();
-      particles=[]; ctx.clearRect(0,0,c.width,c.height); // teks hilang saat foto
-      currentSlide=-1;
-    } else if(["one","two","three","four","five"].includes(gesture)){
+      particles=[];
+      ctx.clearRect(0,0,c.width,c.height);
+    }
+    else if(["one","two","three","four","five"].includes(gesture)){
+      mode="slide";
       hidePhoto();
       const map={one:0,two:1,three:2,four:3,five:4};
-      currentSlide=map[gesture];
-      drawParticles(slides[currentSlide]);
-    } else {
+      drawParticles(slides[map[gesture]]);
+    }
+    else{
+      mode="idle";
       hidePhoto();
-      particles=[]; ctx.clearRect(0,0,c.width,c.height);
-      currentSlide=-1;
+      particles=[];
+      ctx.clearRect(0,0,c.width,c.height);
     }
     lastSwitch=Date.now();
   }
@@ -158,12 +187,12 @@ async function detect(){
   requestAnimationFrame(detect);
 }
 
-// Init
+/* ===== INIT ===== */
 (async()=>{
   await setupCamera();
   model=await handpose.load();
   detect();
-  bgm.play().catch(()=>{document.body.addEventListener("click",()=>bgm.play());});
+  bgm.play().catch(()=>document.body.addEventListener("click",()=>bgm.play()));
 })();
 </script>
 </body>
