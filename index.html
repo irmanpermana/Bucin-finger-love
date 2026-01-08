@@ -156,8 +156,11 @@ async function detect(){
   // ✋ Slide 4: semua jari (toleran ibu jari)
   else if(idx && mid && ring && pink) gesture="four";
 
-  // 👍 Slide 5: ibu jari menjauh, jari lain sebagian menutup
-  else if(distance(lm[4],lm[2])>35 && lm[8][1]>lm[6][1] && lm[12][1]>lm[10][1]) gesture="five";
+  // 👍 Slide 5: ibu jari dominan, jari lain sebagian menutup
+const thumbDist = distance(lm[4], lm[2]);
+const fingersClosed = (lm[8][1] > lm[6][1] && lm[12][1] > lm[10][1]); // index & middle cukup
+
+if (thumbDist > 30 && fingersClosed) gesture="five";
 
   if(gesture===lastGesture) gestureFrames++;
   else {gestureFrames=0; lastGesture=gesture;}
