@@ -157,13 +157,21 @@ else if (
 else if(idx && mid && ring && pink){
   gesture="four";
 }
-// 👍 Slide 5 (jempol saja)
-else if(
-  !idx && !mid && !ring && !pink &&
-  lm[4][1] < lm[3][1]
-){
-  gesture="five";
-  }
+// 👍 Slide 5 (thumb dominant, toleran)
+else if (
+  // ibu jari menjauh dari telapak
+  Math.hypot(
+    lm[4][0] - lm[2][0],
+    lm[4][1] - lm[2][1]
+  ) > 40
+  &&
+  // jari lain relatif menutup
+  lm[8][1] > lm[6][1] &&
+  lm[12][1] > lm[10][1] &&
+  lm[16][1] > lm[14][1]
+) {
+  gesture = "five";
+}
 
   if(gesture===lastGesture)gestureFrames++;else{gestureFrames=0;lastGesture=gesture;}
 
