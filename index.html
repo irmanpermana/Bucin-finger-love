@@ -38,23 +38,18 @@ video{position:fixed;width:1px;height:1px;opacity:0;}
 <img id="photo" src="foto/IMG-20251103-WA0038.jpg">
 <video id="video" autoplay muted playsinline></video>
 
-<!-- MUSIK LATAR -->
-<audio id="bgm" src="musik/Virgoun_Last_Child_-_Surat_Cinta_Untuk_Starla_(mp3.pm).mp3" loop></audio>
-
 <script>
 /* BASIC */
 const canvas=c=document.getElementById("c");
 const ctx=c.getContext("2d");
 const video=document.getElementById("video");
 const photo=document.getElementById("photo");
-const bgm = document.getElementById("bgm");
-
 c.width=innerWidth;c.height=innerHeight;
 addEventListener("resize",()=>{c.width=innerWidth;c.height=innerHeight;});
 
 let model,particles=[],currentSlide=-1;
 let lastGesture="",gestureFrames=0,lastSwitch=0;
-const HOLD=12, COOLDOWN=800;
+const HOLD=7, COOLDOWN=800;
 
 /* SLIDES */
 const slides=[
@@ -129,10 +124,10 @@ async function setupCamera(){
 const up=(t,p)=>t[1]<p[1];
 const distance=(a,b)=>Math.hypot(a[0]-b[0],a[1]-b[1]);
 
-/* DETECT GESTURE */
+/* DETECT GESTURE TOLERAN */
 async function detect(){
   const h=await model.estimateHands(video);
-  if(!h.length){ requestAnimationFrame(detect); return; }
+  if(!h.length){requestAnimationFrame(detect);return;}
 
   const lm=h[0].landmarks;
   const idx=up(lm[8],lm[6]),
@@ -142,13 +137,9 @@ async function detect(){
 
   let gesture="none";
 
-  // 👌 Gesture untuk foto
-  if(distance(lm[4],lm[8])<45){
-    gesture="photo";
-    showPhoto();
-  } else {
-    hidePhoto();
-  }
+  // 👌 Foto: hanya cek ibu jari + telunjuk dekat (toleran jari lain)
+  if(distance(lm[4],lm[8])<45) { gesture="photo"; showPhoto(); }
+  else hidePhoto();
 
   // ☝️ Slide 1
   if(idx && !mid && !ring && !pink) gesture="one";
@@ -156,31 +147,28 @@ async function detect(){
   // ✌️ Slide 2
   else if(idx && mid && (!ring || ring) && !pink) gesture="two";
 
-  // 🤟 Slide 3
+  // 🤟 Slide 3: index + pinky
   else if(idx && pink && (!mid || mid) && (!ring || ring)) gesture="three";
 
-  // ✋ Slide 4 (minimal 3 dari 4 jari utama)
-  else{
-    const fingersUp=[idx, mid, ring, pink];
-    const upCount = fingersUp.filter(v=>v).length;
-    if(upCount>=3) gesture="four";
-  }
+  // ✋ Slide 4 stabil: cek 4 jari (index+middle+ring+pinky), cukup 3 naik dari 4
+const fingersUp = [idx, mid, ring, pink];
+const upCount = fingersUp.filter(v => v).length;
+if(upCount >= 3) gesture = "four";
 
-  // 👍 Slide 5
+  // 👍 Slide 5: ibu jari dominan, jari lain sebagian menutup
   const thumbDist = distance(lm[4], lm[2]);
   const fingersClosed = (lm[8][1] > lm[6][1] && lm[12][1] > lm[10][1]);
-  if(thumbDist>30 && fingersClosed) gesture="five";
+  if(thumbDist > 30 && fingersClosed) gesture="five";
 
   // Frame counting
   if(gesture===lastGesture) gestureFrames++;
   else {gestureFrames=0; lastGesture=gesture;}
 
   if(gestureFrames>=HOLD && Date.now()-lastSwitch>COOLDOWN){
-    const map={one:0,two:1,three:2,four:3,five:4,photo:-1};
-    if(map[gesture]!==undefined){
-      // hanya gambar partikel untuk slide, bukan foto
-      if(gesture!=="photo") drawParticles(slides[map[gesture]]);
-      currentSlide=gesture;
+    const map={one:0,two:1,three:2,four:3,five:4};
+    if(map[gesture]!==undefined && currentSlide!==map[gesture]){
+      drawParticles(slides[map[gesture]]);
+      currentSlide=map[gesture];
       lastSwitch=Date.now();
     }
   }
@@ -193,12 +181,6 @@ async function detect(){
   await setupCamera();
   model=await handpose.load();
   detect();
-
-  // MAINKAN MUSIK LATAR
-  bgm.play().catch(()=>{
-    console.log("Autoplay musik diblokir, tap layar untuk mulai");
-  });
-  document.body.addEventListener("click", ()=> bgm.play());
 })();
 </script>
 </body>
